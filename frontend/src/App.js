@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import WeekGrid from './components/WeekGrid';
-import BookingPage from './components/BookingPage';
 import PublicBooking from './components/PublicBooking';
 import './App.css';
 
@@ -22,7 +21,6 @@ function App() {
   const [user, setUser] = useState(null);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('owner');
   const [duration, setDuration] = useState(30);
 
   const checkAuth = useCallback(async () => {
@@ -142,20 +140,6 @@ function App() {
             <div className="app-logo">Open<span>Slot</span></div>
             {user && (
               <div className="app-header-right">
-                <div className="duration-selector">
-                  <button
-                    className={`duration-btn${view === 'owner' ? ' active' : ''}`}
-                    onClick={() => setView('owner')}
-                  >
-                    My Slots
-                  </button>
-                  <button
-                    className={`duration-btn${view === 'booking' ? ' active' : ''}`}
-                    onClick={() => setView('booking')}
-                  >
-                    Booking Preview
-                  </button>
-                </div>
                 <button
                   className={`btn-copy-link${linkCopied ? ' copied' : ''}`}
                   disabled={slots.length === 0 || linkSaving}
@@ -181,7 +165,7 @@ function App() {
                   </button>
                 </div>
               </div>
-            ) : view === 'owner' ? (
+            ) : (
               <WeekGrid
                 slots={slots}
                 onWeekChange={fetchAvailability}
@@ -189,8 +173,6 @@ function App() {
                 duration={duration}
                 onDurationChange={setDuration}
               />
-            ) : (
-              <BookingPage slots={slots} duration={duration} />
             )}
           </main>
         </div>
