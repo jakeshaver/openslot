@@ -9,6 +9,9 @@ const offersRoutes = require('./routes/offers');
 
 const app = express();
 
+// Trust Cloud Run's reverse proxy so secure cookies work
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true,
