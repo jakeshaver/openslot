@@ -59,7 +59,7 @@ function App() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ windows, duration: offerDuration }),
+        body: JSON.stringify({ windows, duration: offerDuration, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       if (!res.ok) throw new Error('Failed to create offer');
       const data = await res.json();

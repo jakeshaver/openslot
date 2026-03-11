@@ -4,6 +4,21 @@ import { useParams, useSearchParams } from 'react-router-dom';
 const API_BASE = process.env.REACT_APP_API_URL || '';
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
+const TIMEZONES = typeof Intl.supportedValuesOf === 'function'
+  ? Intl.supportedValuesOf('timeZone')
+  : [
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+    'America/Anchorage', 'Pacific/Honolulu', 'America/Phoenix', 'America/Toronto',
+    'America/Vancouver', 'America/Sao_Paulo', 'America/Argentina/Buenos_Aires',
+    'America/Mexico_City', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+    'Europe/Amsterdam', 'Europe/Madrid', 'Europe/Rome', 'Europe/Zurich',
+    'Europe/Stockholm', 'Europe/Moscow', 'Europe/Istanbul', 'Africa/Cairo',
+    'Africa/Johannesburg', 'Africa/Lagos', 'Asia/Dubai', 'Asia/Kolkata',
+    'Asia/Singapore', 'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Seoul',
+    'Asia/Hong_Kong', 'Asia/Bangkok', 'Australia/Sydney', 'Australia/Melbourne',
+    'Australia/Perth', 'Pacific/Auckland', 'Pacific/Fiji',
+  ];
+
 function getMonthData(year, month) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -46,6 +61,8 @@ export default function PublicBooking() {
   const [booking, setBooking] = useState(false);
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [tzOpen, setTzOpen] = useState(false);
 
   // Fetch offer
   const fetchOffer = useCallback(async () => {
@@ -71,7 +88,7 @@ export default function PublicBooking() {
       // Auto-select date from preselected window
       if (preselectedWindow !== null && data.offer.windows && data.offer.windows[parseInt(preselectedWindow, 10)]) {
         const win = data.offer.windows[parseInt(preselectedWindow, 10)];
-        const dateStr = new Date(win.start).toLocaleDateString('en-CA');
+        const dateStr = new Date(win.start).toLocaleDateString('en-CA', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
         setSelectedDate(dateStr);
         const month = new Date(win.start);
         setViewYear(month.getFullYear());
@@ -80,7 +97,7 @@ export default function PublicBooking() {
       // Auto-select date from preselected slot (legacy)
       else if (preselectedSlot !== null && data.offer.slots[parseInt(preselectedSlot, 10)]) {
         const slot = data.offer.slots[parseInt(preselectedSlot, 10)];
-        const dateStr = new Date(slot.start).toLocaleDateString('en-CA');
+        const dateStr = new Date(slot.start).toLocaleDateString('en-CA', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
         setSelectedDate(dateStr);
         if (slot.status === 'available') {
           setSelectedSlotIdx(parseInt(preselectedSlot, 10));
@@ -99,17 +116,17 @@ export default function PublicBooking() {
     fetchOffer();
   }, [fetchOffer]);
 
-  // Group slots by date
+  // Group slots by date in the selected timezone
   const slotsByDate = useMemo(() => {
     if (!offer) return {};
     const map = {};
     offer.slots.forEach((slot, idx) => {
-      const dateStr = new Date(slot.start).toLocaleDateString('en-CA');
+      const dateStr = new Date(slot.start).toLocaleDateString('en-CA', { timeZone: timezone });
       if (!map[dateStr]) map[dateStr] = [];
       map[dateStr].push({ ...slot, idx });
     });
     return map;
-  }, [offer]);
+  }, [offer, timezone]);
 
   const datesWithSlots = useMemo(() => {
     const set = new Set();
@@ -205,13 +222,14 @@ export default function PublicBooking() {
     }
   };
 
-  const todayStr = today.toLocaleDateString('en-CA');
+  const todayStr = today.toLocaleDateString('en-CA', { timeZone: timezone });
   const selectedDaySlots = selectedDate ? (slotsByDate[selectedDate] || []) : [];
   const selectedDateLabel = selectedDate
     ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
+        timeZone: 'UTC',
       })
     : null;
 
@@ -277,9 +295,9 @@ export default function PublicBooking() {
     const slot = bookingSuccess.slot;
     const startDate = new Date(slot.start);
     const endDate = new Date(slot.end);
-    const dayLabel = startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    const startTime = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const endTime = endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+    const dayLabel = startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: timezone });
+    const startTime = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone });
+    const endTime = endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: timezone });
 
     return (
       <div className="app-shell">
@@ -317,40 +335,70 @@ export default function PublicBooking() {
 
           <div className="booking-layout">
             {/* Mini Calendar */}
-            <div className="mini-calendar">
-              <div className="mini-cal-nav">
-                <button className="mini-cal-nav-btn" onClick={prevMonth}>&larr;</button>
-                <h4>{monthLabel}</h4>
-                <button className="mini-cal-nav-btn" onClick={nextMonth}>&rarr;</button>
+            <div className="booking-left-col">
+              <div className="mini-calendar">
+                <div className="mini-cal-nav">
+                  <button className="mini-cal-nav-btn" onClick={prevMonth}>&larr;</button>
+                  <h4>{monthLabel}</h4>
+                  <button className="mini-cal-nav-btn" onClick={nextMonth}>&rarr;</button>
+                </div>
+                <div className="mini-cal-grid">
+                  {DAYS_OF_WEEK.map((d) => (
+                    <div key={d} className="mini-cal-dow">{d}</div>
+                  ))}
+                  {monthCells.map((cell, i) => {
+                    const dateStr = cell.currentMonth
+                      ? `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`
+                      : '';
+                    const hasSlots = datesWithSlots.has(dateStr);
+                    const isToday = dateStr === todayStr;
+                    const isSelected = dateStr === selectedDate;
+
+                    let className = 'mini-cal-day';
+                    if (cell.currentMonth) className += ' current-month';
+                    if (hasSlots) className += ' has-slots';
+                    if (isToday) className += ' today';
+                    if (isSelected) className += ' selected';
+
+                    return (
+                      <div
+                        key={i}
+                        className={className}
+                        onClick={() => handleDayClick(cell.day, cell.currentMonth)}
+                      >
+                        {cell.day}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="mini-cal-grid">
-                {DAYS_OF_WEEK.map((d) => (
-                  <div key={d} className="mini-cal-dow">{d}</div>
-                ))}
-                {monthCells.map((cell, i) => {
-                  const dateStr = cell.currentMonth
-                    ? `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`
-                    : '';
-                  const hasSlots = datesWithSlots.has(dateStr);
-                  const isToday = dateStr === todayStr;
-                  const isSelected = dateStr === selectedDate;
 
-                  let className = 'mini-cal-day';
-                  if (cell.currentMonth) className += ' current-month';
-                  if (hasSlots) className += ' has-slots';
-                  if (isToday) className += ' today';
-                  if (isSelected) className += ' selected';
-
-                  return (
-                    <div
-                      key={i}
-                      className={className}
-                      onClick={() => handleDayClick(cell.day, cell.currentMonth)}
-                    >
-                      {cell.day}
-                    </div>
-                  );
-                })}
+              {/* Timezone Selector */}
+              <div className="tz-selector">
+                <button className="tz-toggle" onClick={() => setTzOpen(!tzOpen)}>
+                  <span className="tz-icon">🌐</span>
+                  <span className="tz-label">{timezone.replace(/_/g, ' ')}</span>
+                  <span className={`tz-arrow${tzOpen ? ' open' : ''}`}>▾</span>
+                </button>
+                {tzOpen && (
+                  <div className="tz-dropdown">
+                    {TIMEZONES.map((tz) => (
+                      <div
+                        key={tz}
+                        className={`tz-option${tz === timezone ? ' active' : ''}`}
+                        onClick={() => {
+                          setTimezone(tz);
+                          setTzOpen(false);
+                          setSelectedDate(null);
+                          setSelectedSlotIdx(null);
+                          setShowForm(false);
+                        }}
+                      >
+                        {tz.replace(/_/g, ' ')}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -377,11 +425,13 @@ export default function PublicBooking() {
                       const startTime = new Date(slot.start).toLocaleTimeString('en-US', {
                         hour: 'numeric',
                         minute: '2-digit',
+                        timeZone: timezone,
                       });
                       const endTime = new Date(slot.end).toLocaleTimeString('en-US', {
                         hour: 'numeric',
                         minute: '2-digit',
                         timeZoneName: 'short',
+                        timeZone: timezone,
                       });
 
                       return (

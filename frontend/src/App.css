@@ -1136,6 +1136,108 @@ body {
   }
 }
 
+/* ========================= */
+/* TIMEZONE SELECTOR          */
+/* ========================= */
+
+.booking-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tz-selector {
+  position: relative;
+}
+
+.tz-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+.tz-toggle:hover {
+  border-color: var(--blue-border);
+  box-shadow: var(--shadow-blue-sm);
+}
+
+.tz-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.tz-label {
+  flex: 1;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tz-arrow {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.tz-arrow.open {
+  transform: rotate(180deg);
+}
+
+.tz-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: rgba(15, 20, 40, 0.95);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius-md);
+  backdrop-filter: var(--blur-heavy);
+  -webkit-backdrop-filter: var(--blur-heavy);
+  box-shadow: var(--shadow-dark);
+  z-index: 50;
+  animation: fadeIn 0.15s ease;
+}
+
+.tz-option {
+  padding: 0.5rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.tz-option:last-child {
+  border-bottom: none;
+}
+
+.tz-option:hover {
+  background: var(--blue-dim);
+  color: var(--blue-bright);
+}
+
+.tz-option.active {
+  color: var(--amber);
+  background: var(--amber-dim);
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

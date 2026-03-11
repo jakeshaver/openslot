@@ -7,7 +7,7 @@ const crypto = require('crypto');
 
 const offers = new Map();
 
-function createOffer({ ownerEmail, windows, duration, tokens }) {
+function createOffer({ ownerEmail, windows, duration, tokens, timezone }) {
   const id = crypto.randomBytes(4).toString('hex');
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -36,6 +36,7 @@ function createOffer({ ownerEmail, windows, duration, tokens }) {
     duration,
     slots,
     tokens, // owner's OAuth tokens for calendar write on booking
+    timezone, // owner's calendar timezone for display on booking page
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
     status: 'active',

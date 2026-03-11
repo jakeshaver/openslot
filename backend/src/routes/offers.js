@@ -37,6 +37,7 @@ router.post('/', requireAuth, (req, res) => {
     windows,
     duration,
     tokens: req.session.tokens,
+    timezone: req.body.timezone || 'America/New_York',
   });
 
   // Return offer without tokens
@@ -65,6 +66,7 @@ router.get('/:offerId', (req, res) => {
     offer: {
       id: offer.id,
       duration: offer.duration,
+      timezone: offer.timezone,
       windows: offer.windows.map((w) => ({ start: w.start, end: w.end })),
       slots: offer.slots.map((s) => ({
         start: s.start,
