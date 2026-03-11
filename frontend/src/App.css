@@ -1173,6 +1173,7 @@ body {
 .tz-icon {
   font-size: 0.85rem;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .tz-label {
@@ -1191,10 +1192,36 @@ body {
   font-size: 0.7rem;
   color: var(--text-muted);
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
-.tz-arrow.open {
-  transform: rotate(180deg);
+.tz-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-glass);
+  border: 1px solid var(--blue-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-blue-sm);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+.tz-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.tz-search-input::placeholder {
+  color: var(--text-muted);
 }
 
 .tz-dropdown {
@@ -1215,10 +1242,10 @@ body {
 }
 
 .tz-option {
-  padding: 0.5rem 0.85rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
   cursor: pointer;
   transition: all 0.15s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
@@ -1228,14 +1255,51 @@ body {
   border-bottom: none;
 }
 
+.tz-option-label {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.tz-option-abbr {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
 .tz-option:hover {
   background: var(--blue-dim);
+}
+
+.tz-option:hover .tz-option-label {
   color: var(--blue-bright);
 }
 
+.tz-option:hover .tz-option-abbr {
+  color: var(--blue);
+}
+
 .tz-option.active {
-  color: var(--amber);
   background: var(--amber-dim);
+}
+
+.tz-option.active .tz-option-label {
+  color: var(--amber);
+}
+
+.tz-option.active .tz-option-abbr {
+  color: var(--amber-bright);
+}
+
+.tz-no-results {
+  padding: 1rem 0.85rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 /* Scrollbar styling */
