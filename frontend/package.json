@@ -6,7 +6,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.30.3",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "yaml": "^2.8.2"
   },
   "scripts": {
     "start": "react-scripts start",
