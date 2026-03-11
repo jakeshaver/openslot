@@ -4,7 +4,6 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-ENV REACT_APP_API_URL=""
 RUN npm run build
 
 # Stage 2: Production backend + static frontend
