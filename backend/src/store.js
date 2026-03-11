@@ -1,18 +1,25 @@
 /**
- * In-memory offer store.
- * Interface matches Firestore patterns — swap to real Firestore later.
+ * Offer store — Firestore in production, in-memory for dev/test.
+ * All functions are async.
  */
 
 const crypto = require('crypto');
 
-const offers = new Map();
+const useFirestore = process.env.NODE_ENV === 'production';
+let db, offersCol;
 
-function createOffer({ ownerEmail, windows, duration, tokens, timezone }) {
-  const id = crypto.randomBytes(4).toString('hex');
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+if (useFirestore) {
+  const { Firestore } = require('@google-cloud/firestore');
+  db = new Firestore();
+  offersCol = db.collection('offers');
+}
 
-  // Generate bookable slots by slicing windows into duration increments
+// In-memory fallback
+const memStore = new Map();
+
+// ─── Helpers ────────────────────────────────────────────────────────
+
+function generateSlots(windows, duration) {
   const slots = [];
   for (const window of windows) {
     const start = new Date(window.start);
@@ -28,6 +35,17 @@ function createOffer({ ownerEmail, windows, duration, tokens, timezone }) {
       cursor = new Date(cursor.getTime() + duration * 60000);
     }
   }
+  return slots;
+}
+
+// ─── API ────────────────────────────────────────────────────────────
+
+async function createOffer({ ownerEmail, windows, duration, tokens, timezone }) {
+  const id = crypto.randomBytes(4).toString('hex');
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const slots = generateSlots(windows, duration);
 
   const offer = {
     id,
@@ -35,56 +53,106 @@ function createOffer({ ownerEmail, windows, duration, tokens, timezone }) {
     windows,
     duration,
     slots,
-    tokens, // owner's OAuth tokens for calendar write on booking
-    timezone, // owner's calendar timezone for display on booking page
+    tokens,
+    timezone,
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
     status: 'active',
   };
 
-  offers.set(id, offer);
-  return offer;
-}
-
-function getOffer(id) {
-  const offer = offers.get(id);
-  if (!offer) return null;
-
-  // Auto-expire
-  if (new Date() > new Date(offer.expiresAt) && offer.status === 'active') {
-    offer.status = 'expired';
+  if (useFirestore) {
+    await offersCol.doc(id).set(offer);
+  } else {
+    memStore.set(id, offer);
   }
 
   return offer;
 }
 
-function updateOffer(id, updates) {
-  const offer = offers.get(id);
-  if (!offer) return null;
-  Object.assign(offer, updates);
-  offers.set(id, offer);
+async function getOffer(id) {
+  let offer;
+
+  if (useFirestore) {
+    const doc = await offersCol.doc(id).get();
+    if (!doc.exists) return null;
+    offer = doc.data();
+  } else {
+    offer = memStore.get(id);
+    if (!offer) return null;
+  }
+
+  // Auto-expire
+  if (new Date() > new Date(offer.expiresAt) && offer.status === 'active') {
+    offer.status = 'expired';
+    if (useFirestore) {
+      await offersCol.doc(id).update({ status: 'expired' });
+    }
+  }
+
   return offer;
 }
 
-function claimSlot(offerId, slotIndex, bookedBy) {
-  const offer = offers.get(offerId);
-  if (!offer) return null;
-  if (!offer.slots[slotIndex]) return null;
-
-  offer.slots[slotIndex].status = 'claimed';
-  offer.slots[slotIndex].bookedBy = bookedBy;
-
-  // Check if all slots are claimed
-  const allClaimed = offer.slots.every((s) => s.status === 'claimed');
-  if (allClaimed) offer.status = 'claimed';
-
-  offers.set(offerId, offer);
-  return offer;
+async function updateOffer(id, updates) {
+  if (useFirestore) {
+    const doc = await offersCol.doc(id).get();
+    if (!doc.exists) return null;
+    await offersCol.doc(id).update(updates);
+    const updated = await offersCol.doc(id).get();
+    return updated.data();
+  } else {
+    const offer = memStore.get(id);
+    if (!offer) return null;
+    Object.assign(offer, updates);
+    memStore.set(id, offer);
+    return offer;
+  }
 }
 
-// For testing
-function clearAll() {
-  offers.clear();
+async function claimSlot(offerId, slotIndex, bookedBy) {
+  if (useFirestore) {
+    // Use a transaction for atomic claim
+    return db.runTransaction(async (tx) => {
+      const ref = offersCol.doc(offerId);
+      const doc = await tx.get(ref);
+      if (!doc.exists) return null;
+
+      const offer = doc.data();
+      if (!offer.slots[slotIndex]) return null;
+
+      offer.slots[slotIndex].status = 'claimed';
+      offer.slots[slotIndex].bookedBy = bookedBy;
+
+      const allClaimed = offer.slots.every((s) => s.status === 'claimed');
+      if (allClaimed) offer.status = 'claimed';
+
+      tx.update(ref, { slots: offer.slots, status: offer.status });
+      return offer;
+    });
+  } else {
+    const offer = memStore.get(offerId);
+    if (!offer) return null;
+    if (!offer.slots[slotIndex]) return null;
+
+    offer.slots[slotIndex].status = 'claimed';
+    offer.slots[slotIndex].bookedBy = bookedBy;
+
+    const allClaimed = offer.slots.every((s) => s.status === 'claimed');
+    if (allClaimed) offer.status = 'claimed';
+
+    memStore.set(offerId, offer);
+    return offer;
+  }
+}
+
+async function clearAll() {
+  if (useFirestore) {
+    const snapshot = await offersCol.get();
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  } else {
+    memStore.clear();
+  }
 }
 
 module.exports = { createOffer, getOffer, updateOffer, claimSlot, clearAll };

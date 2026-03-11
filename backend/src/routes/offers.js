@@ -11,7 +11,7 @@ const router = express.Router();
  * Create a new slot offer from owner's selected time windows.
  * Body: { windows: [{ start, end }], duration: 30|45|60 }
  */
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const { windows, duration } = req.body;
 
   if (!windows || !Array.isArray(windows) || windows.length === 0) {
@@ -32,7 +32,7 @@ router.post('/', requireAuth, (req, res) => {
     }
   }
 
-  const offer = store.createOffer({
+  const offer = await store.createOffer({
     ownerEmail: req.session.user.email,
     windows,
     duration,
@@ -50,8 +50,8 @@ router.post('/', requireAuth, (req, res) => {
  * Public — fetch an offer for the booking page.
  * Only returns available slots, never owner's calendar details.
  */
-router.get('/:offerId', (req, res) => {
-  const offer = store.getOffer(req.params.offerId);
+router.get('/:offerId', async (req, res) => {
+  const offer = await store.getOffer(req.params.offerId);
 
   if (!offer) {
     return res.status(404).json({ error: 'Offer not found' });
@@ -94,7 +94,7 @@ router.post('/:offerId/book', async (req, res) => {
     return res.status(400).json({ error: 'slotIndex, name, and email are required' });
   }
 
-  const offer = store.getOffer(req.params.offerId);
+  const offer = await store.getOffer(req.params.offerId);
 
   if (!offer) {
     return res.status(404).json({ error: 'Offer not found' });
@@ -140,7 +140,7 @@ router.post('/:offerId/book', async (req, res) => {
       const allConflicted = await checkAllSlotsConflicted(offer, calendar);
 
       if (allConflicted) {
-        store.updateOffer(offer.id, { status: 'expired' });
+        await store.updateOffer(offer.id, { status: 'expired' });
         return res.status(409).json({
           error: 'All offered times are no longer available',
           code: 'offer_stale',
@@ -170,7 +170,7 @@ router.post('/:offerId/book', async (req, res) => {
     });
 
     // Mark slot as claimed
-    store.claimSlot(offer.id, slotIndex, { name, email });
+    await store.claimSlot(offer.id, slotIndex, { name, email });
 
     res.json({
       success: true,
