@@ -36,7 +36,7 @@ router.get('/callback', async (req, res) => {
       picture: userInfo.picture,
     };
 
-    res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
+    res.redirect(process.env.FRONTEND_URL || '/');
   } catch (err) {
     console.error('OAuth callback error:', err.message);
     res.status(500).json({ error: 'Authentication failed' });
