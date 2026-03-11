@@ -160,7 +160,10 @@ router.post('/:offerId/book', async (req, res) => {
         summary: `Meeting with ${name}`,
         start: { dateTime: slot.start },
         end: { dateTime: slot.end },
-        attendees: [{ email }],
+        attendees: [
+          { email: offer.ownerEmail, responseStatus: 'accepted' },
+          { email },
+        ],
         description: `Booked via OpenSlot by ${name} (${email})`,
       },
       sendUpdates: 'all',
