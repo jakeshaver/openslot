@@ -1,6 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 
-const API_BASE = process.env.REACT_APP_API_URL || '';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const START_HOUR = 8;
 const END_HOUR = 20;
@@ -46,21 +45,68 @@ function isSlotAvailable(dayDate, row, availableSlots) {
   });
 }
 
-export default function WeekGrid({ slots, onWeekChange, onCreateOffer, duration, onDurationChange }) {
+const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, onDurationChange, onSelectionChange }, ref) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selected, setSelected] = useState(new Set());
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(null);
   const [dragCurrent, setDragCurrent] = useState(null);
   const [dragMode, setDragMode] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [offerData, setOfferData] = useState(null);
-  const [saving, setSaving] = useState(false);
   const gridRef = useRef(null);
 
   const weekDates = getWeekDates(weekOffset);
   const weekLabel = `${weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDates[4].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+  // Notify parent of selection changes
+  useEffect(() => {
+    onSelectionChange(selected.size);
+  }, [selected, onSelectionChange]);
+
+  // Build contiguous time windows from selected cells
+  const getSelectedWindows = useCallback(() => {
+    const sortedKeys = [...selected].sort((a, b) => {
+      const [ad, ar] = a.split('-').map(Number);
+      const [bd, br] = b.split('-').map(Number);
+      return ad - bd || ar - br;
+    });
+
+    const windows = [];
+    let i = 0;
+    while (i < sortedKeys.length) {
+      const [dayIdx, startRow] = sortedKeys[i].split('-').map(Number);
+      let endRow = startRow;
+
+      while (i + 1 < sortedKeys.length) {
+        const [nd, nr] = sortedKeys[i + 1].split('-').map(Number);
+        if (nd === dayIdx && nr === endRow + 1) {
+          endRow = nr;
+          i++;
+        } else {
+          break;
+        }
+      }
+      i++;
+
+      const date = weekDates[dayIdx];
+      const windowStart = new Date(date);
+      windowStart.setHours(START_HOUR + Math.floor(startRow / 2), (startRow % 2) * 30, 0, 0);
+      const windowEnd = new Date(date);
+      windowEnd.setHours(START_HOUR + Math.floor((endRow + 1) / 2), ((endRow + 1) % 2) * 30, 0, 0);
+
+      windows.push({
+        start: windowStart.toISOString(),
+        end: windowEnd.toISOString(),
+      });
+    }
+
+    return windows;
+  }, [selected, weekDates]);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    getSelectedWindows,
+    clearSelection: () => setSelected(new Set()),
+  }), [getSelectedWindows]);
 
   // Refetch availability when week changes
   const handleWeekChange = (newOffset) => {
@@ -146,92 +192,6 @@ export default function WeekGrid({ slots, onWeekChange, onCreateOffer, duration,
     return () => window.removeEventListener('mouseup', up);
   }, [handleMouseUp]);
 
-  // Build contiguous time windows from selected cells
-  const getSelectedWindows = useCallback(() => {
-    const sortedKeys = [...selected].sort((a, b) => {
-      const [ad, ar] = a.split('-').map(Number);
-      const [bd, br] = b.split('-').map(Number);
-      return ad - bd || ar - br;
-    });
-
-    const windows = [];
-    let i = 0;
-    while (i < sortedKeys.length) {
-      const [dayIdx, startRow] = sortedKeys[i].split('-').map(Number);
-      let endRow = startRow;
-
-      while (i + 1 < sortedKeys.length) {
-        const [nd, nr] = sortedKeys[i + 1].split('-').map(Number);
-        if (nd === dayIdx && nr === endRow + 1) {
-          endRow = nr;
-          i++;
-        } else {
-          break;
-        }
-      }
-      i++;
-
-      const date = weekDates[dayIdx];
-      const windowStart = new Date(date);
-      windowStart.setHours(START_HOUR + Math.floor(startRow / 2), (startRow % 2) * 30, 0, 0);
-      const windowEnd = new Date(date);
-      windowEnd.setHours(START_HOUR + Math.floor((endRow + 1) / 2), ((endRow + 1) % 2) * 30, 0, 0);
-
-      windows.push({
-        start: windowStart.toISOString(),
-        end: windowEnd.toISOString(),
-      });
-    }
-
-    return windows;
-  }, [selected, weekDates]);
-
-  // Format a time window as a single line with range
-  const formatWindowLine = (win) => {
-    const start = new Date(win.start);
-    const end = new Date(win.end);
-    const day = start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    const startTime = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const endTime = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
-    return `${day} @ ${startTime}–${endTime}`;
-  };
-
-  // Generate message with offer link — one line per window
-  const generateMessage = (offer) => {
-    const baseUrl = window.location.origin;
-
-    if (!offer || !offer.windows) {
-      // Fallback: plain text without links
-      const windows = getSelectedWindows();
-      const lines = windows.map((w) => `  ${formatWindowLine(w)}`);
-      return `Hi — happy to connect! Here are a few times that work on my end:\n\n${lines.join('\n')}\n\nFeel free to grab whichever works best.`;
-    }
-
-    const lines = offer.windows.map((w, idx) => {
-      return `  ${formatWindowLine(w)} → ${baseUrl}/book/${offer.id}?window=${idx}`;
-    });
-
-    return `Hi — happy to connect! Here are a few times that work on my end:\n\n${lines.join('\n')}\n\nJust click whichever works best — it'll book directly on my calendar.`;
-  };
-
-  // Handle Generate Message — persist offer then show modal
-  const handleGenerate = async () => {
-    setSaving(true);
-    const windows = getSelectedWindows();
-    const offer = await onCreateOffer(windows, duration);
-    setOfferData(offer);
-    setSaving(false);
-    setShowModal(true);
-    setCopied(false);
-  };
-
-  const handleCopy = async () => {
-    const msg = generateMessage(offerData);
-    await navigator.clipboard.writeText(msg);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -256,13 +216,6 @@ export default function WeekGrid({ slots, onWeekChange, onCreateOffer, duration,
               Clear
             </button>
           )}
-          <button
-            className="btn-primary"
-            disabled={selected.size === 0 || saving}
-            onClick={handleGenerate}
-          >
-            {saving ? 'Saving...' : 'Send Slots'}
-          </button>
         </div>
       </div>
 
@@ -325,21 +278,8 @@ export default function WeekGrid({ slots, onWeekChange, onCreateOffer, duration,
           })}
         </div>
       </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Your message</h3>
-            <div className="message-preview">{generateMessage(offerData)}</div>
-            <div className="modal-actions">
-              <button className="btn-ghost" onClick={() => setShowModal(false)}>Close</button>
-              <button className={`btn-copy${copied ? ' copied' : ''}`} onClick={handleCopy}>
-                {copied ? 'Copied!' : 'Copy to clipboard'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-}
+});
+
+export default WeekGrid;

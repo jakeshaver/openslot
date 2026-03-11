@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import WeekGrid from './components/WeekGrid';
 import PublicBooking from './components/PublicBooking';
@@ -17,11 +17,46 @@ function GoogleIcon() {
   );
 }
 
+// Format a time window as a single line with range
+function formatWindowLine(win) {
+  const start = new Date(win.start);
+  const end = new Date(win.end);
+  const day = start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  const startTime = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const endTime = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+  return `${day} @ ${startTime}–${endTime}`;
+}
+
+// Generate message with offer link — one line per window
+function generateMessage(offer) {
+  const baseUrl = window.location.origin;
+
+  if (!offer || !offer.windows) {
+    return 'Something went wrong generating your message.';
+  }
+
+  const lines = offer.windows.map((w, idx) => {
+    return `  ${formatWindowLine(w)} → ${baseUrl}/book/${offer.id}?window=${idx}`;
+  });
+
+  return `Hi — happy to connect! Here are a few times that work on my end:\n\n${lines.join('\n')}\n\nJust click whichever works best — it'll book directly on my calendar.`;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [duration, setDuration] = useState(30);
+  const weekGridRef = useRef(null);
+
+  // Selection state (driven by WeekGrid callback)
+  const [selectedCount, setSelectedCount] = useState(0);
+
+  // Send Slots modal state
+  const [sendSaving, setSendSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [offerData, setOfferData] = useState(null);
+  const [modalCopied, setModalCopied] = useState(false);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -86,6 +121,7 @@ function App() {
     setSlots([]);
   };
 
+  // Copy Availability Link
   const [linkCopied, setLinkCopied] = useState(false);
   const [linkSaving, setLinkSaving] = useState(false);
 
@@ -93,7 +129,6 @@ function App() {
     if (linkSaving) return;
     setLinkSaving(true);
     try {
-      // Build contiguous windows from all available slots
       const windows = [];
       const sorted = [...slots].sort((a, b) => new Date(a.start) - new Date(b.start));
       for (const slot of sorted) {
@@ -119,6 +154,28 @@ function App() {
     }
   }, [slots, duration, createOffer, linkSaving]);
 
+  // Send Slots — get windows from WeekGrid, create offer, show modal
+  const handleSendSlots = useCallback(async () => {
+    if (sendSaving || !weekGridRef.current) return;
+    setSendSaving(true);
+    try {
+      const windows = weekGridRef.current.getSelectedWindows();
+      const offer = await createOffer(windows, duration);
+      setOfferData(offer);
+      setShowModal(true);
+      setModalCopied(false);
+    } finally {
+      setSendSaving(false);
+    }
+  }, [sendSaving, duration, createOffer]);
+
+  const handleModalCopy = async () => {
+    const msg = generateMessage(offerData);
+    await navigator.clipboard.writeText(msg);
+    setModalCopied(true);
+    setTimeout(() => setModalCopied(false), 2000);
+  };
+
   if (loading) {
     return (
       <div className="app-shell">
@@ -140,6 +197,15 @@ function App() {
             <div className="app-logo">Open<span>Slot</span></div>
             {user && (
               <div className="app-header-right">
+                {selectedCount > 0 && (
+                  <button
+                    className="btn-primary"
+                    disabled={sendSaving}
+                    onClick={handleSendSlots}
+                  >
+                    {sendSaving ? 'Saving...' : 'Send Slots'}
+                  </button>
+                )}
                 <button
                   className={`btn-copy-link${linkCopied ? ' copied' : ''}`}
                   disabled={slots.length === 0 || linkSaving}
@@ -167,14 +233,30 @@ function App() {
               </div>
             ) : (
               <WeekGrid
+                ref={weekGridRef}
                 slots={slots}
                 onWeekChange={fetchAvailability}
-                onCreateOffer={createOffer}
                 duration={duration}
                 onDurationChange={setDuration}
+                onSelectionChange={setSelectedCount}
               />
             )}
           </main>
+
+          {showModal && (
+            <div className="modal-overlay" onClick={() => setShowModal(false)}>
+              <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                <h3>Your message</h3>
+                <div className="message-preview">{generateMessage(offerData)}</div>
+                <div className="modal-actions">
+                  <button className="btn-ghost" onClick={() => setShowModal(false)}>Close</button>
+                  <button className={`btn-copy${modalCopied ? ' copied' : ''}`} onClick={handleModalCopy}>
+                    {modalCopied ? 'Copied!' : 'Copy to clipboard'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       } />
     </Routes>
