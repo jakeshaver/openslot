@@ -252,6 +252,42 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 6 — Security Hardening ✅ March 2026
+**Outcome:** App hardened against abuse and data leakage across 5 areas. Firestore-backed IP rate limiting on the public booking endpoint. Calendar data leakage audit confirmed clean. Global error handler added. All public error responses verified to expose no internal details. 61 total tests, all passing in CI.
+
+**1. Rate Limiting:**
+- Firestore-backed (production) / in-memory (dev/test) IP rate limiter
+- `checkRateLimit` function in `store.js` — tracks attempt timestamps per IP, prunes expired entries
+- Express middleware in `middleware/rateLimit.js` — configurable `maxAttempts` and `windowMs`
+- Applied to `POST /api/offers/:offerId/book` — 10 attempts per IP per 15-minute rolling window
+- Returns clean `429 { error: "Too many requests. Please try again later." }`
+- Fails open if Firestore check errors (doesn't block legitimate users)
+
+**2. Calendar Data Leakage Audit:**
+- GET `/api/offers/:offerId` returns only whitelisted fields: id, duration, timezone, windows, slots, expiresAt, status
+- No tokens, ownerEmail, bookedBy, or calendar metadata (summary, description, attendees, organizer) exposed
+- Tests lock in the whitelist behavior
+
+**3. Credential & Secret Exposure Audit:**
+- All routes audited — no tokens, session secrets, or env var values in any API response
+- Tokens stripped via destructuring (`const { tokens, ...safeOffer } = offer`) on create
+- Public GET uses explicit field whitelist (not spread)
+
+**4. Unauthorized Calendar Manipulation Audit:**
+- Calendar events only created in booking POST route, requiring: valid active offer in Firestore + unclaimed slot + stored OAuth tokens
+- Security preconditions documented in JSDoc comments
+
+**5. Error Message Hardening:**
+- Global Express error handler added to `app.js` — catches unhandled errors, returns `{ error: "Internal server error" }` with no stack traces
+- All public route errors verified to contain no file paths, stack traces, or internal error codes beyond the defined set
+
+**Key decisions:**
+- Firestore-backed rate limiting chosen over in-memory to survive Cloud Run cold starts and work across multiple instances
+- Rate limiting scoped to booking endpoint only — owner routes are auth-gated, GET offer is read-only
+- `rateLimits` Firestore collection keyed by sanitized IP address
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
