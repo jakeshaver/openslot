@@ -160,6 +160,18 @@ describe('Offer store', () => {
     expect(offer.slots.length).toBe(2);
   });
 
+  it('creates correct slot count for 15-min duration', async () => {
+    const offer = await store.createOffer({
+      ownerEmail: 'test@example.com',
+      windows: [
+        { start: '2026-03-10T14:00:00Z', end: '2026-03-10T15:00:00Z' }, // 1h = 4 x 15m
+      ],
+      duration: 15,
+      tokens: {},
+    });
+    expect(offer.slots.length).toBe(4);
+  });
+
   it('claims slot and updates status', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',

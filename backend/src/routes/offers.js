@@ -20,8 +20,8 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'windows array is required' });
   }
 
-  if (![30, 45, 60].includes(duration)) {
-    return res.status(400).json({ error: 'duration must be 30, 45, or 60' });
+  if (![15, 30, 45, 60].includes(duration)) {
+    return res.status(400).json({ error: 'duration must be 15, 30, 45, or 60' });
   }
 
   // Validate each window has start/end
