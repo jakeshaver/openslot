@@ -143,6 +143,21 @@ describe('Calendar data leakage — public routes', () => {
   });
 });
 
+describe('Live availability check on GET /api/offers/:offerId', () => {
+  it('still returns offer data when live check is not available (fallback)', async () => {
+    const offer = await store.createOffer({
+      ownerEmail: 'test@example.com',
+      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      duration: 30,
+      tokens: { access_token: 'invalid-token' },
+    });
+
+    const res = await request(app).get(`/api/offers/${offer.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.offer.slots.length).toBeGreaterThan(0);
+  });
+});
+
 describe('Error message hardening — public routes', () => {
   it('returns clean not_found error for invalid offer ID', async () => {
     const res = await request(app).get('/api/offers/doesnotexist');

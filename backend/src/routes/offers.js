@@ -63,6 +63,62 @@ router.get('/:offerId', async (req, res) => {
     return res.status(410).json({ error: 'Offer has expired', code: 'offer_expired' });
   }
 
+  // Start with Firestore snapshot of slots
+  let slots = offer.slots.map((s) => ({
+    start: s.start,
+    end: s.end,
+    status: s.status,
+  }));
+
+  // Live calendar check — filter out slots that now conflict with owner's calendar
+  if (offer.tokens) {
+    try {
+      const oauth2Client = createOAuth2Client();
+      oauth2Client.setCredentials(offer.tokens);
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+      const availableSlots = slots.filter((s) => s.status === 'available');
+      if (availableSlots.length > 0) {
+        const earliest = new Date(Math.min(...availableSlots.map((s) => new Date(s.start))));
+        const latest = new Date(Math.max(...availableSlots.map((s) => new Date(s.end))));
+
+        const eventsRes = await calendar.events.list({
+          calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+          timeMin: earliest.toISOString(),
+          timeMax: latest.toISOString(),
+          singleEvents: true,
+        });
+
+        const busyEvents = (eventsRes.data.items || []).filter(
+          (e) => e.status !== 'cancelled' && e.transparency !== 'transparent'
+        );
+
+        // Remove slots that now conflict — hide entirely (don't show as unavailable)
+        slots = slots.filter((s) => {
+          if (s.status !== 'available') return false; // already claimed — hide
+          const slotStart = new Date(s.start).getTime();
+          const slotEnd = new Date(s.end).getTime();
+          const hasConflict = busyEvents.some((e) => {
+            const eStart = new Date(e.start.dateTime || e.start.date).getTime();
+            const eEnd = new Date(e.end.dateTime || e.end.date).getTime();
+            return eStart < slotEnd && eEnd > slotStart;
+          });
+          return !hasConflict;
+        });
+      } else {
+        // All slots are claimed — filter them out
+        slots = [];
+      }
+    } catch (err) {
+      // Live check failed — fall back to snapshot (filter out claimed slots)
+      console.error('Live availability check failed, using snapshot:', err.message);
+      slots = slots.filter((s) => s.status === 'available');
+    }
+  } else {
+    // No tokens — fall back to snapshot (filter out claimed slots)
+    slots = slots.filter((s) => s.status === 'available');
+  }
+
   // SECURITY: Public view — explicitly whitelist returned fields.
   // Never expose: tokens, ownerEmail, bookedBy, calendar metadata (summary, description, attendees, organizer).
   res.json({
@@ -71,11 +127,7 @@ router.get('/:offerId', async (req, res) => {
       duration: offer.duration,
       timezone: offer.timezone,
       windows: offer.windows.map((w) => ({ start: w.start, end: w.end })),
-      slots: offer.slots.map((s) => ({
-        start: s.start,
-        end: s.end,
-        status: s.status,
-      })),
+      slots,
       expiresAt: offer.expiresAt,
       status: offer.status,
     },
