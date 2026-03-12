@@ -28,8 +28,8 @@
   --amber-border: rgba(245, 158, 11, 0.5);
   --amber-bright: #FBBF24;
 
-  --busy-bg: rgba(255, 255, 255, 0.02);
-  --busy-stripe: rgba(255, 255, 255, 0.04);
+  --busy-bg: rgba(255, 255, 255, 0.05);
+  --busy-stripe: rgba(255, 255, 255, 0.08);
   --shadow-blue-sm: 0 0 12px rgba(0, 168, 255, 0.15);
   --shadow-blue-md: 0 0 20px rgba(0, 168, 255, 0.2);
   --shadow-amber-sm: 0 0 12px rgba(245, 158, 11, 0.2);
@@ -549,17 +549,18 @@ body {
     repeating-linear-gradient(
       0deg,
       transparent,
-      transparent 5px,
-      var(--busy-stripe) 5px,
-      var(--busy-stripe) 6px
+      transparent 3px,
+      var(--busy-stripe) 3px,
+      var(--busy-stripe) 4px
     ),
     repeating-linear-gradient(
       90deg,
       transparent,
-      transparent 5px,
-      var(--busy-stripe) 5px,
-      var(--busy-stripe) 6px
-    );
+      transparent 3px,
+      var(--busy-stripe) 3px,
+      var(--busy-stripe) 4px
+    ),
+    var(--busy-bg);
   cursor: not-allowed;
 }
 
