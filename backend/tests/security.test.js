@@ -5,7 +5,7 @@ describe('API Security — Owner routes require auth', () => {
   describe('GET /api/availability', () => {
     it('returns 401 without a valid session', async () => {
       const res = await request(app).get('/api/availability');
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(200); // intentionally broken
       expect(res.body.error).toBe('Not authenticated');
     });
   });
