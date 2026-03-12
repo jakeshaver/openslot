@@ -91,3 +91,54 @@ describe('Rate limiting on POST /api/offers/:offerId/book', () => {
     expect(responseText).not.toContain('/Users/');
   });
 });
+
+describe('Calendar data leakage — public routes', () => {
+  it('GET /api/offers/:offerId returns no calendar metadata', async () => {
+    const offer = await store.createOffer({
+      ownerEmail: 'owner@example.com',
+      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      duration: 30,
+      tokens: { access_token: 'secret-token', refresh_token: 'secret-refresh' },
+    });
+
+    const res = await request(app).get(`/api/offers/${offer.id}`);
+    expect(res.status).toBe(200);
+
+    const body = JSON.stringify(res.body);
+
+    // No tokens or credentials
+    expect(body).not.toContain('secret-token');
+    expect(body).not.toContain('secret-refresh');
+    expect(body).not.toContain('access_token');
+    expect(body).not.toContain('refresh_token');
+
+    // No calendar metadata fields
+    expect(res.body.offer.summary).toBeUndefined();
+    expect(res.body.offer.description).toBeUndefined();
+    expect(res.body.offer.attendees).toBeUndefined();
+    expect(res.body.offer.organizer).toBeUndefined();
+
+    // No owner email in public response
+    expect(body).not.toContain('owner@example.com');
+
+    // No bookedBy data in slots
+    for (const slot of res.body.offer.slots) {
+      expect(slot.bookedBy).toBeUndefined();
+      expect(Object.keys(slot)).toEqual(['start', 'end', 'status']);
+    }
+  });
+
+  it('GET /api/offers/:offerId returns only whitelisted offer fields', async () => {
+    const offer = await store.createOffer({
+      ownerEmail: 'owner@example.com',
+      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      duration: 30,
+      tokens: { access_token: 'test' },
+      timezone: 'America/New_York',
+    });
+
+    const res = await request(app).get(`/api/offers/${offer.id}`);
+    const allowedFields = ['id', 'duration', 'timezone', 'windows', 'slots', 'expiresAt', 'status'];
+    expect(Object.keys(res.body.offer).sort()).toEqual(allowedFields.sort());
+  });
+});

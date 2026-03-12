@@ -63,7 +63,8 @@ router.get('/:offerId', async (req, res) => {
     return res.status(410).json({ error: 'Offer has expired', code: 'offer_expired' });
   }
 
-  // Public view — no tokens, no owner details beyond email
+  // SECURITY: Public view — explicitly whitelist returned fields.
+  // Never expose: tokens, ownerEmail, bookedBy, calendar metadata (summary, description, attendees, organizer).
   res.json({
     offer: {
       id: offer.id,
@@ -85,6 +86,11 @@ router.get('/:offerId', async (req, res) => {
  * POST /api/offers/:offerId/book
  * Public — book a specific slot.
  * Body: { slotIndex, name, email }
+ *
+ * SECURITY: Calendar event creation requires BOTH:
+ * 1. A valid active offer in Firestore (with stored OAuth tokens)
+ * 2. A legitimate unclaimed slot within that offer
+ * No calendar event can be created without both preconditions.
  *
  * Does a LIVE conflict check against the owner's Google Calendar
  * before confirming the booking.
