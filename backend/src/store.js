@@ -17,6 +17,7 @@ if (useFirestore) {
 // In-memory fallback
 const memStore = new Map();
 const memSettings = new Map();
+const memRateLimits = new Map();
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -165,6 +166,42 @@ async function saveSettings(userId, settings) {
   return settings;
 }
 
+// ─── Rate Limiting ───────────────────────────────────────────────────
+
+async function checkRateLimit(ip, maxAttempts, windowMs) {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+
+  if (useFirestore) {
+    const ref = db.collection('rateLimits').doc(ip.replace(/[/.]/g, '_'));
+    const doc = await ref.get();
+
+    let attempts = [];
+    if (doc.exists) {
+      attempts = (doc.data().attempts || []).filter((ts) => ts > cutoff);
+    }
+
+    if (attempts.length >= maxAttempts) {
+      return { allowed: false, count: attempts.length };
+    }
+
+    attempts.push(now);
+    await ref.set({ attempts, updatedAt: new Date().toISOString() });
+    return { allowed: true, count: attempts.length };
+  } else {
+    let attempts = memRateLimits.get(ip) || [];
+    attempts = attempts.filter((ts) => ts > cutoff);
+
+    if (attempts.length >= maxAttempts) {
+      return { allowed: false, count: attempts.length };
+    }
+
+    attempts.push(now);
+    memRateLimits.set(ip, attempts);
+    return { allowed: true, count: attempts.length };
+  }
+}
+
 // ─── Cleanup ────────────────────────────────────────────────────────
 
 async function clearAll() {
@@ -176,7 +213,8 @@ async function clearAll() {
   } else {
     memStore.clear();
     memSettings.clear();
+    memRateLimits.clear();
   }
 }
 
-module.exports = { createOffer, getOffer, updateOffer, claimSlot, getSettings, saveSettings, clearAll };
+module.exports = { createOffer, getOffer, updateOffer, claimSlot, getSettings, saveSettings, checkRateLimit, clearAll };
