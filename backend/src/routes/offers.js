@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { google } = require('googleapis');
 const { createOAuth2Client } = require('../config/google');
 const { requireAuth } = require('../middleware/auth');
@@ -153,9 +154,10 @@ router.post('/:offerId/book', async (req, res) => {
       });
     }
 
-    // No conflict — create the calendar event
+    // No conflict — create the calendar event with Google Meet
     const event = await calendar.events.insert({
       calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+      conferenceDataVersion: 1,
       requestBody: {
         summary: `Meeting with ${name}`,
         start: { dateTime: slot.start },
@@ -165,6 +167,12 @@ router.post('/:offerId/book', async (req, res) => {
           { email },
         ],
         description: `Booked via OpenSlot by ${name} (${email})`,
+        conferenceData: {
+          createRequest: {
+            requestId: crypto.randomUUID(),
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
+          },
+        },
       },
       sendUpdates: 'all',
     });

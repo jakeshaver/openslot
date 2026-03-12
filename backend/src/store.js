@@ -16,6 +16,7 @@ if (useFirestore) {
 
 // In-memory fallback
 const memStore = new Map();
+const memSettings = new Map();
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -144,6 +145,28 @@ async function claimSlot(offerId, slotIndex, bookedBy) {
   }
 }
 
+// ─── Settings ───────────────────────────────────────────────────────
+
+async function getSettings(userId) {
+  if (useFirestore) {
+    const doc = await db.collection('settings').doc(userId).get();
+    return doc.exists ? doc.data() : null;
+  } else {
+    return memSettings.get(userId) || null;
+  }
+}
+
+async function saveSettings(userId, settings) {
+  if (useFirestore) {
+    await db.collection('settings').doc(userId).set(settings, { merge: true });
+  } else {
+    memSettings.set(userId, { ...(memSettings.get(userId) || {}), ...settings });
+  }
+  return settings;
+}
+
+// ─── Cleanup ────────────────────────────────────────────────────────
+
 async function clearAll() {
   if (useFirestore) {
     const snapshot = await offersCol.get();
@@ -152,7 +175,8 @@ async function clearAll() {
     await batch.commit();
   } else {
     memStore.clear();
+    memSettings.clear();
   }
 }
 
-module.exports = { createOffer, getOffer, updateOffer, claimSlot, clearAll };
+module.exports = { createOffer, getOffer, updateOffer, claimSlot, getSettings, saveSettings, clearAll };

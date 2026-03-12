@@ -415,9 +415,44 @@ body {
   box-shadow: var(--shadow-amber-sm);
 }
 
+.week-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.week-nav-today {
+  background: var(--blue-dim);
+  border: 1px solid var(--blue-border);
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.week-nav-today:hover:not(:disabled) {
+  background: var(--blue-glow);
+  box-shadow: var(--shadow-blue-sm);
+  color: var(--blue-bright);
+}
+
+.week-nav-today:disabled {
+  background: var(--bg-glass);
+  border-color: var(--border-glass);
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .week-grid {
   display: grid;
-  grid-template-columns: 64px repeat(5, 1fr);
+  /* grid-template-columns set inline based on working days */
 }
 
 .grid-header {
@@ -1300,6 +1335,268 @@ body {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+/* ========================= */
+/* SETTINGS PAGE              */
+/* ========================= */
+
+.settings-back-link {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--blue);
+  text-decoration: none;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.settings-back-link:hover {
+  opacity: 1;
+  text-shadow: 0 0 12px var(--blue-glow);
+}
+
+.settings-page {
+  max-width: 560px;
+  margin: 0 auto;
+  animation: fadeUp 0.5s ease both;
+}
+
+.settings-panel {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-dark);
+}
+
+.settings-panel h2 {
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.settings-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  margin-bottom: 2rem;
+}
+
+.settings-section {
+  margin-bottom: 1.75rem;
+}
+
+.settings-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--blue);
+  margin-bottom: 0.65rem;
+}
+
+.day-toggles {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.day-toggle {
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.day-toggle:hover {
+  border-color: var(--blue-border);
+  color: var(--blue);
+}
+
+.day-toggle.active {
+  background: var(--amber-dim);
+  border-color: var(--amber-border);
+  color: var(--amber);
+  box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.1);
+}
+
+.hours-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hours-divider {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.settings-select {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b92a5' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+
+.settings-select:focus {
+  border-color: var(--blue-border);
+  box-shadow: 0 0 12px var(--blue-glow);
+}
+
+.settings-select option {
+  background: #0f1428;
+  color: var(--text-primary);
+}
+
+.settings-row {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.settings-section-half {
+  flex: 1;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stepper-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.stepper-btn:hover {
+  background: var(--blue-dim);
+  color: var(--blue-bright);
+}
+
+.stepper-btn:active {
+  background: var(--blue-glow);
+}
+
+.stepper-value {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0.5rem 0;
+  border-left: 1px solid var(--border-glass);
+  border-right: 1px solid var(--border-glass);
+}
+
+.settings-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-save {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border: 1px solid var(--amber-border);
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-save:hover {
+  background: var(--amber-glow);
+  box-shadow: var(--shadow-amber-md);
+  transform: translateY(-1px);
+}
+
+.btn-save:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-save.saved {
+  background: var(--amber-glow-strong);
+  color: var(--amber-bright);
+  box-shadow: var(--shadow-amber-lg);
+}
+
+/* Gear icon button */
+.btn-gear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-gear:hover {
+  border-color: var(--blue-border);
+  color: var(--blue);
+  box-shadow: var(--shadow-blue-sm);
+}
+
+.btn-gear.active {
+  border-color: var(--amber-border);
+  color: var(--amber);
+  background: var(--amber-dim);
 }
 
 /* Scrollbar styling */

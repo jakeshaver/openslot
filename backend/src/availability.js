@@ -7,6 +7,7 @@
 
 const DEFAULT_CONFIG = {
   workingHours: { start: '08:00', end: '20:00' },
+  workingDays: [1, 2, 3, 4, 5], // 0=Sun, 1=Mon, ..., 6=Sat
   timezone: 'America/New_York',
   minSlotMinutes: 30,
   bufferMinutes: 15,
@@ -130,7 +131,7 @@ function applyBuffer(intervals, bufferMinutes) {
  */
 function calculateAvailability(events, userConfig = {}) {
   const config = { ...DEFAULT_CONFIG, ...userConfig };
-  const { workingHours, timezone, minSlotMinutes, bufferMinutes, daysAhead } = config;
+  const { workingHours, workingDays, timezone, minSlotMinutes, bufferMinutes, daysAhead } = config;
   const minSlotMs = minSlotMinutes * 60 * 1000;
 
   // Strip events down to busy intervals (privacy: no details retained)
@@ -142,18 +143,19 @@ function calculateAvailability(events, userConfig = {}) {
   const now = new Date();
   const baseDate = config._startDate || now;
 
+  // Map short day names to JS day numbers for fallback
+  const dayNameToNum = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
   for (let d = 0; d < daysAhead; d++) {
     const day = new Date(baseDate);
     day.setDate(baseDate.getDate() + d);
 
-    // Skip weekends (0 = Sunday, 6 = Saturday) in the target timezone
-    const dayOfWeek = parseInt(
-      new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'narrow' })
-        .format(day),
-      10
-    );
+    // Get the day of week in the target timezone (0=Sun ... 6=Sat)
     const localDayStr = day.toLocaleDateString('en-US', { timeZone: timezone, weekday: 'short' });
-    if (localDayStr === 'Sat' || localDayStr === 'Sun') continue;
+    const localDayNum = dayNameToNum[localDayStr];
+
+    // Skip days not in the working days array
+    if (!workingDays.includes(localDayNum)) continue;
 
     const dayStart = getWorkingBoundary(day, workingHours.start, timezone);
     const dayEnd = getWorkingBoundary(day, workingHours.end, timezone);

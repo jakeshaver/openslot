@@ -3,6 +3,7 @@ const { google } = require('googleapis');
 const { createOAuth2Client } = require('../config/google');
 const { requireAuth } = require('../middleware/auth');
 const { calculateAvailability, DEFAULT_CONFIG } = require('../availability');
+const store = require('../store');
 
 const router = express.Router();
 
@@ -10,6 +11,7 @@ const router = express.Router();
  * GET /api/availability
  *
  * Returns free time slots only. No event details are ever exposed.
+ * Loads user's saved settings from Firestore, falls back to defaults.
  * Query params: daysAhead, minSlotMinutes, bufferMinutes, timezone,
  *               workingStart, workingEnd, weekStart (ISO date)
  */
@@ -20,14 +22,28 @@ router.get('/', requireAuth, async (req, res) => {
 
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
+    // Load user's saved settings
+    const userSettings = await store.getSettings(req.session.user.email) || {};
+
     const config = {
       ...DEFAULT_CONFIG,
       daysAhead: parseInt(req.query.daysAhead, 10) || DEFAULT_CONFIG.daysAhead,
       minSlotMinutes: parseInt(req.query.minSlotMinutes, 10) || DEFAULT_CONFIG.minSlotMinutes,
-      bufferMinutes: parseInt(req.query.bufferMinutes, 10) || DEFAULT_CONFIG.bufferMinutes,
+      bufferMinutes: userSettings.bufferMinutes ?? DEFAULT_CONFIG.bufferMinutes,
       timezone: req.query.timezone || DEFAULT_CONFIG.timezone,
     };
 
+    // Apply saved working hours
+    if (userSettings.workingHours) {
+      config.workingHours = userSettings.workingHours;
+    }
+
+    // Apply saved working days
+    if (userSettings.workingDays) {
+      config.workingDays = userSettings.workingDays;
+    }
+
+    // Query param overrides (for backward compat)
     if (req.query.workingStart && req.query.workingEnd) {
       config.workingHours = {
         start: req.query.workingStart,

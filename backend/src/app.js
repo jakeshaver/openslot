@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const calendarRoutes = require('./routes/calendar');
 const availabilityRoutes = require('./routes/availability');
 const offersRoutes = require('./routes/offers');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/offers', offersRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

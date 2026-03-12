@@ -86,14 +86,16 @@ Auto-holds would clutter the calendar with phantom events that may never materia
 
 ```json
 {
-  "workingHours": { "start": "09:00", "end": "18:00" },
+  "workingHours": { "start": "08:00", "end": "20:00" },
+  "workingDays": [1, 2, 3, 4, 5],
   "timezone": "America/New_York",
   "minSlotMinutes": 30,
   "bufferMinutes": 15,
-  "daysAhead": 7,
-  "weekendsEnabled": false
+  "daysAhead": 7
 }
 ```
+
+All defaults are overridable via the Settings page (saved to Firestore per user).
 
 ---
 
@@ -162,8 +164,70 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
-### Sprint 3 — Booking Page 🔄 In Progress
-**Goal:** Public-facing booking page at `/book/:offerId`. Month calendar + time slot picker. Confirmation form. Google Calendar event created with booker as attendee. Confirmation screen on success.
+### Sprint 3 — Booking Page ✅ March 2026
+**Outcome:** Public booking page at `/book/:offerId`. Calendly-style layout — month calendar on left, time slots for the selected day on right. Booking form (name + email). Google Calendar event created with booker as attendee. Confirmation screen on success. Expired/stale offer error pages. Mobile-friendly layout.
+
+**Key decisions:**
+- No account required for recipients
+- Claimed slots hidden entirely (not strikethrough)
+- Month calendar highlights days with available slots
+- Slot items show time range and duration
+
+---
+
+### Sprint 3.5 — Deploy to GCP + Core UX Fixes ✅ March 2026
+**Outcome:** App deployed to GCP Cloud Run at `https://openslot-653554267204.us-east1.run.app`. Firestore persistence for offers (survive redeployments). "Copy Availability Link" one-click button in nav. Timezone-aware booking page with searchable timezone selector. Owner Gmail notification on booking. Google OAuth scopes updated for `gmail.send`.
+
+**Key decisions:**
+- "Copy Availability Link" copies a single full-availability URL — no modal, no drag required
+- Offers stored in Firestore (production) with in-memory fallback for dev/test
+- Firestore transactions used for atomic slot claiming (prevents race conditions)
+- Timezone auto-detected via `Intl.DateTimeFormat().resolvedOptions().timeZone`, searchable override dropdown with friendly names
+- All times stored in UTC, rendered in user's local timezone on frontend
+- Owner notification via Gmail API (fire-and-forget) — no third-party email service
+- `trust proxy` enabled for secure cookies behind Cloud Run's TLS termination
+- Dead BookingPage preview component removed
+
+**Post-launch fixes:**
+- Owner added as accepted attendee on booking events (so event appears on their calendar)
+- "Send Slots" button lifted to sticky header (visible during scroll)
+- Working hours expanded to 8am–8pm ET
+- Window-based URLs (`?window=N`) for curated message links
+
+---
+
+### Sprint 4 — Usefulness ✅ March 2026
+**Outcome:** Google Meet links added to every booking invite automatically. Settings page at `/settings` with gear icon in nav. Working days, working hours, buffer time, and default duration are all configurable and saved to Firestore. Availability engine and WeekGrid both respect saved settings.
+
+**Feature 1 — Google Meet Integration:**
+- `conferenceData` with `createRequest` using `crypto.randomUUID()` added to calendar event insert
+- `conferenceDataVersion: 1` passed in API call
+- Both owner and guest see Meet link in their calendar event
+
+**Feature 2 — Settings Page:**
+- Backend: `GET/PUT /api/settings` routes, Firestore persistence keyed by user email
+- Working days: 7 individual toggles (Sun–Sat), default Mon–Fri
+- Working hours: start/end selectors in 30-min increments across full 12am–12am range, default 8am–8pm
+- Buffer time and default duration: custom +/− stepper buttons (Arc Blue), replacing native number inputs
+- Availability engine reads from saved settings, falls back to defaults if none exist
+- WeekGrid dynamically renders columns based on `workingDays` and adjusts row range based on `workingHours`
+- Styled with existing design system: dark glassmorphism panel, Arc Blue labels, Amber "Save Settings" button with inline "Saved!" confirmation
+- "Back to calendar" link (Arc Blue) at top of settings page; gear icon toggles between settings and calendar
+
+**Key decisions:**
+- Settings stored in Firestore `settings` collection, keyed by owner email
+- `workingDays` stored as array of day numbers `[0=Sun, 1=Mon, ..., 6=Sat]`
+- Availability engine replaced hardcoded Sat/Sun skip with configurable `workingDays` array
+- `DEFAULT_CONFIG` updated to include `workingDays: [1, 2, 3, 4, 5]`
+- Query param overrides preserved for backward compatibility
+
+**Local dev fix:**
+- Fixed OAuth login loop on localhost — `REACT_APP_API_URL` was bypassing CRA proxy, causing cross-origin cookie issues. API calls now route through the CRA proxy (same-origin); separate `REACT_APP_BACKEND_URL` used only for OAuth full-page redirect.
+
+**QA fixes:**
+- Week navigation prev/next crash: `getWeekDates` return shape changed to `{date, dayNum}` objects but `handleWeekChange` still called `.toISOString()` on the wrapper object — fixed to access `.date` property
+- "Today" pill button added to week nav header — sits left of the right arrow, Arc Blue when active, greyed out + disabled when already on current week
+- Settings page back navigation: gear icon on `/settings` navigates to `/`; "Back to calendar" Arc Blue link above the panel
 
 ---
 

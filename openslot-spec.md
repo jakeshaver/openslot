@@ -1,5 +1,5 @@
 # OpenSlot — Product Spec & Development Roadmap
-**Version:** 1.1  
+**Version:** 1.2  
 **Created:** March 2026  
 **Owner:** Project lead  
 **Stack:** GCP · Google Calendar API · OAuth 2.0 · Node.js · React  
@@ -25,7 +25,25 @@ OpenSlot is an open-source, self-hosted scheduling web app that gives profession
 - **Professional grade** — something you'd feel comfortable sending to a hiring manager
 - **Mobile-friendly** — recipients are often on their phones
 - **GCP-native** — built on Google Cloud to minimize complexity for a Google Calendar user
-- **Vimcal-inspired UX** — drag-to-select availability, copy-paste human touch, not a generic booking link
+- **Drag-to-select UX** — drag-to-select availability, copy-paste human touch, not a generic booking link
+
+---
+
+## Two Offer Types
+
+**Type A — "Copy Availability Link" (Full Availability):**
+- Single button click in nav → copies one URL to clipboard
+- Single-use offer, all available slots next 7 days
+- Recipient sees full booking page, picks any slot
+- No message text generated — just the URL
+
+**Type B — "Curated Offer" (Drag Select):**
+- Drag windows on week grid → Generate Message
+- Human-readable text, one URL per dragged window
+- Recipient clicks a window URL, sees slots within that window
+- Personal, intentional, used mid-conversation
+
+Both are single-use. Neither is a persistent reusable link.
 
 ---
 
@@ -33,17 +51,20 @@ OpenSlot is an open-source, self-hosted scheduling web app that gives profession
 
 ### As the calendar owner (you):
 - I can sign in with my Google account
-- I can see my upcoming availability in a week grid view (Mon–Fri, 9am–6pm)
+- I can see my upcoming availability in a week grid view
 - I can drag across free time blocks to select what I want to offer
 - I can set the booking increment (30 / 45 / 60 min)
 - I can generate a copyable message with each time window as a hyperlink
-- I can configure meeting duration, buffer time, and a default meeting title
+- I can click "Copy Availability Link" to instantly copy a full-availability booking URL
+- I can configure my working days, working hours, buffer time, and default meeting duration via a settings page
+- I receive a Gmail notification when someone books a slot
 
 ### As the recipient (recruiter, colleague, etc.):
 - I can open a link and see the specific times offered to me
+- I can view available times in my local timezone, with a searchable timezone override dropdown
 - I can click a time to claim it
 - I can confirm my name and email before booking
-- I receive a Google Calendar invite after booking (native invite handles confirmation — no third-party email service needed)
+- I receive a Google Calendar invite (with Google Meet link) after booking
 - I cannot double-book a slot already taken
 - I see a clean "no times available" message if all slots are conflicted
 
@@ -55,14 +76,15 @@ OpenSlot is an open-source, self-hosted scheduling web app that gives profession
 [Your Browser]
      |
      v
-[React Frontend — hosted on GCP Firebase Hosting or Cloud Run]
+[React Frontend — hosted on GCP Cloud Run]
      |
      v
 [Node.js Backend — hosted on GCP Cloud Run]
      |
      ├──> [Google Calendar API] — read/write calendar events
+     ├──> [Gmail API] — owner booking notification emails
      ├──> [Google OAuth 2.0] — authenticate the calendar owner
-     └──> [Firestore] — store booking offers & sessions
+     └──> [Firestore] — store booking offers, sessions & user settings
 ```
 
 ### Key Technical Decisions
@@ -72,9 +94,11 @@ OpenSlot is an open-source, self-hosted scheduling web app that gives profession
 | Backend | Node.js | Same language front-to-back, GCP native support |
 | Hosting | GCP Cloud Run | Scales to zero (free when idle), containerized |
 | Database | Firestore | Serverless, free tier, no schema management |
-| Auth | Google OAuth 2.0 | You already use this pattern from job campaign app |
+| Auth | Google OAuth 2.0 | Direct integration with Google Calendar |
 | Calendar | Google Calendar API | Direct integration, no middleware |
 | Unique IDs | Node.js `crypto.randomUUID()` | Built-in, no ESM dependency issues |
+| Timezones | UTC storage, local render | All times stored in UTC, converted to user/booker timezone on render |
+| Email notifications | Gmail API | No third-party email service needed — uses owner's existing OAuth credentials |
 
 ---
 
@@ -112,9 +136,6 @@ INTEGRATION
 **Goal:** Prove the pipes work. Auth + Calendar read. Nothing pretty.  
 **Definition of done:** Sign in with Google and see upcoming calendar events on screen.
 
-**Claude Code prompt:**
-> "Scaffold a Node.js + Express backend with Google OAuth 2.0 authentication and a route that fetches the next 7 days of events from the authenticated user's Google Calendar API. Include a minimal React frontend with a Sign in with Google button. Use environment variables for all secrets. Include Jest tests for the auth flow and calendar fetch route."
-
 ### Sprint 0 — QA Checklist ✅
 - [x] 1. Google OAuth sign-in completes without error
 - [x] 2. Calendar events for next 7 days appear on screen after auth
@@ -133,27 +154,13 @@ INTEGRATION
 **Goal:** Smart free-slot detection. Given your calendar, return available blocks.  
 **Definition of done:** App returns free time blocks filtered by working hours with busy times blocked out.
 
-**Config shape:**
-```json
-{
-  "workingHours": { "start": "09:00", "end": "18:00" },
-  "timezone": "America/New_York",
-  "minSlotMinutes": 30,
-  "bufferMinutes": 15,
-  "daysAhead": 7
-}
-```
-
-**Claude Code prompt:**
-> "Build an availability calculation engine in Node.js. It takes a list of existing Google Calendar events and a config object (working hours, timezone, buffer time, min slot duration, days ahead) and returns an array of available time slots. Include comprehensive Jest tests covering: back-to-back meetings, all-day events, slots at boundary of working hours, and buffer time enforcement."
-
 ### Sprint 1 — QA Checklist ✅
 - [x] 1. `/api/availability` returns free blocks for the next 7 days
 - [x] 2. Busy times from Google Calendar are correctly excluded
 - [x] 3. Buffer time (15 min) is applied before and after existing events
 - [x] 4. All-day events block the entire day
 - [x] 5. Saturday and Sunday are never returned as available
-- [x] 6. No slots returned outside 9am–6pm working hours
+- [x] 6. No slots returned outside working hours
 - [x] 7. Back-to-back meetings produce no available slot between them
 - [x] 8. Jest tests all pass including edge cases
 - [x] 9. Response reflects real calendar data, not mock data
@@ -161,30 +168,25 @@ INTEGRATION
 
 ---
 
-### Sprint 1.5 — UI Foundation 🔄 In Progress
-**Goal:** Vimcal-inspired week grid for slot picking. Dark glassmorphism aesthetic. Arc Blue + Amber design system applied.  
+### Sprint 1.5 — UI Foundation ✅
+**Goal:** Week grid for slot picking. Dark glassmorphism aesthetic. Arc Blue + Amber design system applied.  
 **Definition of done:** Week grid renders correctly, drag selection works, design system fully applied.
 
-**Design reference:** openslot-design-system.md
-
-**Claude Code prompt:**
-> "Rebuild the OpenSlot frontend with a dark glassmorphism aesthetic per the design system in openslot-design-system.md. Week grid: Mon–Fri, 9am–6pm, 30-min row increments. Free drag-to-select across free blocks only — selected blocks glow amber. Busy blocks render with hatched unavailable style. Duration selector (30m/45m/60m) in Arc Blue. Generate Message button in Amber — disabled until slots selected. No minutes tally. No weekends. Backend untouched. Accent colors: Arc Blue #00A8FF (structure/info), Amber #F59E0B (action/CTA)."
-
-### Sprint 1.5 — QA Checklist
-- [ ] 1. Week grid shows Mon–Fri only, no weekends
-- [ ] 2. Time range is 9am–6pm, nothing outside those hours
-- [ ] 3. Busy blocks from Google Calendar show as hatched/unavailable
-- [ ] 4. Cannot drag over busy blocks
-- [ ] 5. Free block drag highlights in Amber with glow
-- [ ] 6. Multiple selections across different days work simultaneously
-- [ ] 7. Duration selector (30m/45m/60m) toggles correctly in Arc Blue
-- [ ] 8. Generate Message button is dim/disabled with no slots selected
-- [ ] 9. Generate Message button is Amber and glowing when slots are selected
-- [ ] 10. No console errors during drag interaction
+### Sprint 1.5 — QA Checklist ✅
+- [x] 1. Week grid shows Mon–Fri only, no weekends
+- [x] 2. Time range is 9am–6pm, nothing outside those hours
+- [x] 3. Busy blocks from Google Calendar show as hatched/unavailable
+- [x] 4. Cannot drag over busy blocks
+- [x] 5. Free block drag highlights in Amber with glow
+- [x] 6. Multiple selections across different days work simultaneously
+- [x] 7. Duration selector (30m/45m/60m) toggles correctly in Arc Blue
+- [x] 8. Generate Message button is dim/disabled with no slots selected
+- [x] 9. Generate Message button is Amber and glowing when slots are selected
+- [x] 10. No console errors during drag interaction
 
 ---
 
-### Sprint 2 — Offer Engine & Real-Time Conflict Check
+### Sprint 2 — Offer Engine & Real-Time Conflict Check ✅
 **Goal:** Wire availability to the grid, persist offers to Firestore, real-time conflict check at booking time.  
 **Definition of done:** Drag → Generate Message → offer saved to Firestore → copyable message with links → live conflict check when recipient books.
 
@@ -194,83 +196,132 @@ INTEGRATION
 - If all slots in an offer are conflicted → return `offer_stale` error with "contact directly" message
 - Offer expiry: 7 days
 
-**Claude Code prompt:**
-> "Build the availability engine for OpenSlot. Reference the design system in openslot-design-system.md for all UI elements.
->
-> Backend:
-> 1. `/api/availability` — returns free blocks for date range, Mon–Fri, 9am–6pm ET, 15-min buffer, from authenticated user's Google Calendar.
-> 2. `/api/offers` POST — saves offer to Firestore: unique ID via crypto.randomUUID(), array of dragged time windows, booking duration, created timestamp, 7-day expiry, status (active/expired/claimed).
-> 3. `/api/offers/:offerId/book` POST — fetches offer, does live real-time conflict check against current Google Calendar, creates calendar event if clear, marks slot claimed, returns conflict error if unavailable. If ALL slots conflicted, return offer_stale error code.
->
-> Frontend:
-> 1. Wire week grid to `/api/availability` on load and week navigation.
-> 2. Drag selection only works over free blocks.
-> 3. Generate Message calls `/api/offers`, renders copyable output panel — each time window as Arc Blue hyperlink, copy button in Amber.
->
-> Tests: availability calculation, buffer enforcement, offer creation, real-time conflict check, offer_stale error state."
-
-### Sprint 2 — QA Checklist
-- [ ] 1. Week grid loads real Google Calendar data — busy blocks match actual calendar
-- [ ] 2. Cannot drag over busy blocks
-- [ ] 3. Generate Message creates a new offer document in Firestore (verify in GCP Console)
-- [ ] 4. Firestore offer document has correct fields: slots, duration, expiry, status=active
-- [ ] 5. Generated message shows each slot as an Arc Blue hyperlink
-- [ ] 6. Copy button (Amber) copies full formatted message correctly
-- [ ] 7. Duration selector changes the number of slots in the generated message
-- [ ] 8. Week navigation reloads availability for the new week
-- [ ] 9. Booking a conflicted slot returns an error (test: add conflicting GCal event after generating offer)
-- [ ] 10. If all slots are conflicted, booking page shows "no times available — contact directly" message
+### Sprint 2 — QA Checklist ✅
+- [x] 1. Week grid loads real Google Calendar data — busy blocks match actual calendar
+- [x] 2. Cannot drag over busy blocks
+- [x] 3. Generate Message creates a new offer document in Firestore
+- [x] 4. Firestore offer document has correct fields: slots, duration, expiry, status=active
+- [x] 5. Generated message shows each slot as an Arc Blue hyperlink
+- [x] 6. Copy button (Amber) copies full formatted message correctly
+- [x] 7. Duration selector changes the number of slots in the generated message
+- [x] 8. Week navigation reloads availability for the new week
+- [x] 9. Booking a conflicted slot returns an error
+- [x] 10. If all slots are conflicted, booking page shows "no times available — contact directly" message
 
 ---
 
-### Sprint 3 — Booking Page (Their View)
+### Sprint 3 — Booking Page (Their View) ✅
 **Goal:** The page recipients see. Mobile-friendly, no account needed, auto-books on confirm.  
 **Definition of done:** Recipient opens link, picks a time, enters name/email, calendar event created for both parties.
 
-**Claude Code prompt:**
-> "Build a public-facing React booking page at `/book/:offerId`. Fetch offer from Firestore, display available time slots in Calendly-style layout: month calendar left, time slots for selected day right. Claimed/conflicted slots shown as unavailable. On slot selection show confirmation form (name + email). On submit: create a Google Calendar event with the booker added as an attendee — Google Calendar's native invite handles email confirmation to both parties automatically, no third-party email service needed. Mark slot as claimed in Firestore. Show a confirmation screen after successful booking. Handle expired offers with a friendly error state. Mobile-responsive. Apply design system from openslot-design-system.md — Arc Blue for calendar chrome and slot pills, Amber for the confirm/book button. Tests: full booking flow, double-booking prevention, expired offer handling."
-
-### Sprint 3 — QA Checklist
-- [ ] 1. Booking page loads from a generated link without requiring sign-in
-- [ ] 2. Month calendar shows correct available days
-- [ ] 3. Selecting a day shows correct time slots for that day
-- [ ] 4. Already-claimed slots appear greyed out and unclickable
-- [ ] 5. Submitting name/email creates the event in Google Calendar
-- [ ] 6. Confirmation screen appears after successful booking
-- [ ] 7. Booker receives a Google Calendar invite to the booked event (check their email)
-- [ ] 8. Attempting to book a claimed slot returns an appropriate error
-- [ ] 9. Expired offer link shows a clean friendly error page
-- [ ] 10. Booking page looks correct and usable on iPhone Safari
+### Sprint 3 — QA Checklist ✅
+- [x] 1. Booking page loads from a generated link without requiring sign-in
+- [x] 2. Month calendar shows correct available days
+- [x] 3. Selecting a day shows correct time slots for that day
+- [x] 4. Already-claimed slots appear greyed out and unclickable
+- [x] 5. Submitting name/email creates the event in Google Calendar
+- [x] 6. Confirmation screen appears after successful booking
+- [x] 7. Booker receives a Google Calendar invite to the booked event
+- [x] 8. Attempting to book a claimed slot returns an appropriate error
+- [x] 9. Expired offer link shows a clean friendly error page
+- [x] 10. Booking page looks correct and usable on iPhone Safari
 
 ---
 
-### Sprint 4 — Polish + Ship
-**Goal:** Production-ready. Public URL, clean UI, GitHub repo, README.  
-**Definition of done:** Send a real booking link to a real person and it works end to end.
+### Sprint 3.5 — Deploy to GCP + Core UX Fixes ✅
+**Goal:** App live on production URL. Full Availability offer type shipped. Firestore persistence. Timezone support. Owner notifications.  
+**Definition of done:** Real users can book via production URL. Owner is notified. Offers survive redeployments.
 
-**Tasks:**
-- [ ] Custom domain setup on GCP
-- [ ] UI polish pass — mobile-responsive throughout
-- [ ] Meeting title / notes field on booking form
-- [ ] Settings page: working hours, buffer time, default duration
-- [ ] Write `README.md` with clone-and-deploy instructions
-- [ ] Add MIT license to GitHub repo
-- [ ] Add `CONTRIBUTING.md`
-- [ ] GitHub Actions CI — run tests on every PR
-- [ ] Security review: `/api/availability` locked to calendar owner only
-- [ ] End-to-end test: full booking flow from link to calendar event
+**What was built:**
+- Deployed to GCP Cloud Run at `https://openslot-653554267204.us-east1.run.app`
+- "Copy Availability Link" button in nav — single click copies full-availability booking URL, no modal
+- Firestore persistence for offers — offers survive redeployments and cold starts
+- Timezone-aware booking page — auto-detects booker's browser timezone via `Intl.DateTimeFormat().resolvedOptions().timeZone`, searchable override dropdown
+- All times stored in UTC, rendered in local timezone on frontend
+- Owner Gmail notification on booking via Gmail API — subject: "New booking: [Guest Name] — [Date] at [Time]"
+- Google OAuth scopes updated to include `gmail.send`
+
+### Sprint 3.5 — QA Checklist ✅
+- [x] 1. "Copy Availability Link" button appears in nav
+- [x] 2. Clicking it copies a single URL to clipboard (no modal/panel)
+- [x] 3. Button shows "Copied!" in Amber for 2 seconds
+- [x] 4. Pasting the URL and opening it shows full booking page with all available slots
+- [x] 5. Curated drag-select + Generate Message still works unchanged
+- [x] 6. App loads on the Cloud Run URL without errors
+- [x] 7. Google OAuth sign-in works on production URL
+- [x] 8. Calendar grid loads real data on production
+- [x] 9. Generated URLs use the production BASE_URL, not localhost
+- [x] 10. End-to-end: copy link → open in incognito → book a slot → event appears on Google Calendar
+
+---
+
+### Sprint 4 — Usefulness ⏳ Up Next
+**Goal:** Make the app meaningfully more useful for the owner and booker.  
+**Definition of done:** Google Meet added to every invite. Owner can configure their own working days, hours, buffer, and duration via a settings page. All availability calculations respect saved settings.
+
+**Key decisions:**
+- Settings stored in Firestore under the owner's user document (keyed by Google user ID)
+- Availability engine reads from saved settings, falls back to defaults if none exist
+- Working days are fully configurable (any combination of Sun–Sat) to support international users
+- Working hours are fully configurable across the full 12am–12am range in 30-min increments
+- Buffer time and default duration are free numeric inputs in minutes
+- Google Meet added via `conferenceData` in Calendar API — no new dependencies
+
+**Claude Code prompt:**
+> "Implement Sprint 4 for OpenSlot. Two features:
+>
+> **1. Google Meet Integration**
+> Add a Google Meet link to every booking invite automatically. When creating the calendar event in the booking route, include `conferenceData` with `createRequest` using `crypto.randomUUID()` as the `requestId`. Pass `conferenceDataVersion: 1` in the API call. Both the owner and guest should see the Meet link in their calendar event.
+>
+> **2. Settings Page**
+> Add a `/settings` route accessible via a gear icon in the top nav. Settings are saved to Firestore under the owner's user document (keyed by their Google user ID) and loaded on app startup to replace all hardcoded config values.
+>
+> Settings fields:
+> - Working days: 7 individual toggles (Sun, Mon, Tue, Wed, Thu, Fri, Sat). Default: Mon–Fri.
+> - Working hours: Start time and end time selectors in 30-min increments across the full 12am–12am range. Default: 8am–8pm.
+> - Buffer time: Numeric input in minutes. Default: 15.
+> - Default meeting duration: Numeric input in minutes. Default: 30.
+>
+> The availability engine (`/api/availability`) must read from saved settings instead of hardcoded values. If no settings document exists for the user yet, fall back to the current defaults.
+>
+> Style the settings page using the existing design system: dark glassmorphism panel, Arc Blue labels, Amber 'Save Settings' button with a brief inline 'Saved!' confirmation on success.
+>
+> Tests: settings Firestore read/write, availability calculation correctly reflects custom working days, custom working hours, and custom buffer time."
 
 ### Sprint 4 — QA Checklist
-- [ ] 1. App loads correctly on the public URL (not localhost)
-- [ ] 2. Google OAuth works on production URL (redirect URI updated in GCP)
-- [ ] 3. Full end-to-end flow: drag → generate → send link → recipient books → event on calendar
-- [ ] 4. App is usable on iPhone Safari — no broken layouts
-- [ ] 5. Settings page saves working hours and buffer time correctly
-- [ ] 6. Meeting title field appears on booking form and shows on the calendar event
-- [ ] 7. README has accurate setup instructions (verify by following them fresh)
-- [ ] 8. `.env` still not in the repo after all Sprint 4 commits
-- [ ] 9. GitHub Actions CI runs and passes on the main branch
-- [ ] 10. No console errors on the production URL during normal use
+- [ ] 1. Gear icon appears in nav and links to `/settings`
+- [ ] 2. Settings page renders with all four config fields
+- [ ] 3. Working day toggles save and reload correctly
+- [ ] 4. Working hours save and reload correctly
+- [ ] 5. Buffer time and duration save and reload correctly
+- [ ] 6. Week grid reflects saved working days (e.g. if Monday toggled off, no Monday column)
+- [ ] 7. Availability respects saved working hours — no slots outside defined range
+- [ ] 8. Every new booking invite includes a Google Meet link (verify in calendar event)
+- [ ] 9. Meet link appears in both owner and guest calendar events
+- [ ] 10. No console errors during settings save or availability load
+
+---
+
+### Sprint 5 — Resiliency + Security ⏳ Planned
+**Goal:** Lock down the API. Add CI to catch regressions on every push.  
+**Definition of done:** `/api/availability` is inaccessible to unauthenticated users. GitHub Actions runs tests on every PR.
+
+**Tasks:**
+- Lock `/api/availability` to authenticated owner only — return 401 for unauthenticated requests
+- Audit all other owner-only routes for the same gap
+- GitHub Actions CI — run Jest tests on every PR and push to main
+
+### Sprint 5 — QA Checklist
+- [ ] 1. `/api/availability` returns 401 when called without a valid session
+- [ ] 2. All other owner routes return 401 when called without a valid session
+- [ ] 3. Public `/book/:offerId` route still works without auth
+- [ ] 4. GitHub Actions workflow file present in repo
+- [ ] 5. CI runs and passes on a test PR
+- [ ] 6. CI fails correctly when a test is broken (verify by breaking a test intentionally)
+- [ ] 7. No console errors after security changes
+- [ ] 8. Full end-to-end booking flow still works after auth middleware changes
+- [ ] 9. Owner dashboard still loads normally after sign-in
+- [ ] 10. No regressions in availability calculation or offer generation
 
 ---
 
@@ -288,16 +339,6 @@ BASE_URL=https://your-domain.com
 
 ---
 
-## Open Source Checklist (Sprint 4)
-- [ ] MIT License file
-- [ ] README with: what it is, demo screenshot, setup steps, env var guide
-- [ ] `.env.example` file (no real secrets)
-- [ ] `CONTRIBUTING.md`
-- [ ] GitHub Actions CI (run tests on PR)
-- [ ] Docker-friendly (Cloud Run already handles this)
-
----
-
 ## Out of Scope (v1)
 - Team/multi-user scheduling
 - Round-robin or group availability
@@ -306,6 +347,9 @@ BASE_URL=https://your-domain.com
 - Recurring availability templates
 - Auto-hold calendar events
 - Mobile native app
+- Custom domain
+- README / open source documentation (deferred to post-v1)
+- Outlook / iCloud calendar support (ideal for community contributions)
 
 ---
 

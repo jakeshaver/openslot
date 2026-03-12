@@ -1,11 +1,17 @@
 import React, { useState, useCallback, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const START_HOUR = 8;
-const END_HOUR = 20;
-const ROWS = (END_HOUR - START_HOUR) * 2; // 30-min increments
+const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5]; // Mon-Fri
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 20;
 
-function getWeekDates(offset = 0) {
+function parseHour(timeStr) {
+  if (!timeStr) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  return h + m / 60;
+}
+
+function getWeekDates(offset = 0, workingDays = DEFAULT_WORKING_DAYS) {
   const now = new Date();
   const day = now.getDay();
   const diff = day === 0 ? -6 : 1 - day; // Monday
@@ -13,18 +19,26 @@ function getWeekDates(offset = 0) {
   monday.setDate(now.getDate() + diff + offset * 7);
   monday.setHours(0, 0, 0, 0);
 
-  return Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
+  // Return all 7 days of the week, filtered to working days
+  const dates = [];
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() - 1); // Go back to Sunday
+
+  for (let i = 0; i < 7; i++) {
+    if (workingDays.includes(i)) {
+      const d = new Date(sunday);
+      d.setDate(sunday.getDate() + i);
+      dates.push({ date: d, dayNum: i });
+    }
+  }
+  return dates;
 }
 
-function formatHour(row) {
-  const hour = START_HOUR + Math.floor(row / 2);
+function formatHour(row, startHour) {
+  const hour = startHour + Math.floor(row / 2);
   const min = row % 2 === 0 ? '00' : '30';
   const ampm = hour >= 12 ? 'PM' : 'AM';
-  const h = hour > 12 ? hour - 12 : hour;
+  const h = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
   return { label: `${h}:${min} ${ampm}`, isHour: row % 2 === 0 };
 }
 
@@ -32,9 +46,9 @@ function cellKey(dayIdx, row) {
   return `${dayIdx}-${row}`;
 }
 
-function isSlotAvailable(dayDate, row, availableSlots) {
+function isSlotAvailable(dayDate, row, availableSlots, startHour) {
   const cellStart = new Date(dayDate);
-  cellStart.setHours(START_HOUR + Math.floor(row / 2), (row % 2) * 30, 0, 0);
+  cellStart.setHours(startHour + Math.floor(row / 2), (row % 2) * 30, 0, 0);
   const cellEnd = new Date(cellStart);
   cellEnd.setMinutes(cellEnd.getMinutes() + 30);
 
@@ -45,7 +59,7 @@ function isSlotAvailable(dayDate, row, availableSlots) {
   });
 }
 
-const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, onDurationChange, onSelectionChange }, ref) {
+const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, onDurationChange, onSelectionChange, workingDays: propWorkingDays, workingHours: propWorkingHours }, ref) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selected, setSelected] = useState(new Set());
   const [isDragging, setIsDragging] = useState(false);
@@ -54,8 +68,20 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
   const [dragMode, setDragMode] = useState(null);
   const gridRef = useRef(null);
 
-  const weekDates = getWeekDates(weekOffset);
-  const weekLabel = `${weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDates[4].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const workingDays = propWorkingDays || DEFAULT_WORKING_DAYS;
+  const startHour = propWorkingHours ? Math.floor(parseHour(propWorkingHours.start)) : DEFAULT_START_HOUR;
+  const endHour = propWorkingHours ? Math.ceil(parseHour(propWorkingHours.end)) : DEFAULT_END_HOUR;
+  const ROWS = (endHour - startHour) * 2;
+
+  const weekDatesData = getWeekDates(weekOffset, workingDays);
+  const weekDates = weekDatesData.map((d) => d.date);
+  const dayNums = weekDatesData.map((d) => d.dayNum);
+
+  const firstDate = weekDates[0];
+  const lastDate = weekDates[weekDates.length - 1];
+  const weekLabel = firstDate && lastDate
+    ? `${firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : '';
 
   // Notify parent of selection changes
   useEffect(() => {
@@ -89,9 +115,9 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
 
       const date = weekDates[dayIdx];
       const windowStart = new Date(date);
-      windowStart.setHours(START_HOUR + Math.floor(startRow / 2), (startRow % 2) * 30, 0, 0);
+      windowStart.setHours(startHour + Math.floor(startRow / 2), (startRow % 2) * 30, 0, 0);
       const windowEnd = new Date(date);
-      windowEnd.setHours(START_HOUR + Math.floor((endRow + 1) / 2), ((endRow + 1) % 2) * 30, 0, 0);
+      windowEnd.setHours(startHour + Math.floor((endRow + 1) / 2), ((endRow + 1) % 2) * 30, 0, 0);
 
       windows.push({
         start: windowStart.toISOString(),
@@ -112,15 +138,15 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
   const handleWeekChange = (newOffset) => {
     setWeekOffset(newOffset);
     setSelected(new Set());
-    const dates = getWeekDates(newOffset);
-    onWeekChange(dates[0].toISOString());
+    const dates = getWeekDates(newOffset, workingDays);
+    onWeekChange(dates[0].date.toISOString());
   };
 
   // Build set of available cells
   const availableCells = new Set();
   weekDates.forEach((date, dayIdx) => {
     for (let row = 0; row < ROWS; row++) {
-      if (isSlotAvailable(date, row, slots)) {
+      if (isSlotAvailable(date, row, slots, startHour)) {
         availableCells.add(cellKey(dayIdx, row));
       }
     }
@@ -223,17 +249,24 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
         <div className="week-nav">
           <button className="week-nav-btn" onClick={() => handleWeekChange(weekOffset - 1)}>&larr;</button>
           <h3>{weekLabel}</h3>
-          <button className="week-nav-btn" onClick={() => handleWeekChange(weekOffset + 1)}>&rarr;</button>
+          <div className="week-nav-right">
+            <button
+              className="week-nav-today"
+              disabled={weekOffset === 0}
+              onClick={() => handleWeekChange(0)}
+            >Today</button>
+            <button className="week-nav-btn" onClick={() => handleWeekChange(weekOffset + 1)}>&rarr;</button>
+          </div>
         </div>
 
-        <div className="week-grid">
+        <div className="week-grid" style={{ gridTemplateColumns: `64px repeat(${weekDates.length}, 1fr)` }}>
           {/* Header row */}
           <div className="grid-corner" />
           {weekDates.map((date, i) => {
             const isToday = date.getTime() === today.getTime();
             return (
               <div key={i} className="grid-header-cell">
-                <div className="grid-header-day">{DAYS[i]}</div>
+                <div className="grid-header-day">{ALL_DAYS[dayNums[i]]}</div>
                 <div className={`grid-header-date${isToday ? ' today' : ''}`}>{date.getDate()}</div>
               </div>
             );
@@ -241,7 +274,7 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
 
           {/* Grid rows */}
           {Array.from({ length: ROWS }, (_, row) => {
-            const { label, isHour } = formatHour(row);
+            const { label, isHour } = formatHour(row, startHour);
             return (
               <React.Fragment key={row}>
                 <div className={`grid-time-label${!isHour ? ' half-hour' : ''}`}>
