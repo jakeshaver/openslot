@@ -231,6 +231,27 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 5 — Resiliency + Security ✅ March 2026
+**Outcome:** All owner-only API routes audited and confirmed behind `requireAuth` middleware. New security test suite validates auth enforcement. GitHub Actions CI pipeline runs on every push to main and every PR.
+
+**API Security Audit:**
+- All 5 owner routes already had `requireAuth`: `GET /api/availability`, `POST /api/offers`, `GET/PUT /api/settings`, `GET /api/calendar/events`
+- Public routes confirmed accessible without auth: `GET /api/offers/:offerId`, `POST /api/offers/:offerId/book`, `GET /health`
+- No code changes needed — auth middleware was correctly applied from earlier sprints
+- New `security.test.js` with 8 tests locking down the auth contract (50 total tests now)
+
+**GitHub Actions CI:**
+- `.github/workflows/ci.yml` — triggers on push to main and PRs
+- Installs backend + frontend deps, runs Jest tests, builds frontend
+- Node.js 22 (bumped from 20 to avoid deprecation warnings)
+- Verified red/green cycle: intentionally broke a test → CI failed → reverted → CI passed
+
+**Key decisions:**
+- CI runs frontend build (not frontend tests) since there are no frontend unit tests yet — build step catches syntax/import errors
+- No deployment step in CI — deploys remain manual via `gcloud run deploy`
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
