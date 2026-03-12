@@ -34,6 +34,13 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/offers', offersRoutes);
 app.use('/api/settings', settingsRoutes);
 
+// Global error handler — catches unhandled errors and returns a safe response.
+// SECURITY: Never expose stack traces, file paths, or internal error details.
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(err.status || 500).json({ error: 'Internal server error' });
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });

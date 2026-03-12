@@ -142,3 +142,49 @@ describe('Calendar data leakage — public routes', () => {
     expect(Object.keys(res.body.offer).sort()).toEqual(allowedFields.sort());
   });
 });
+
+describe('Error message hardening — public routes', () => {
+  it('returns clean not_found error for invalid offer ID', async () => {
+    const res = await request(app).get('/api/offers/doesnotexist');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Offer not found');
+
+    const body = JSON.stringify(res.body);
+    expect(body).not.toContain('stack');
+    expect(body).not.toContain('node_modules');
+    expect(body).not.toContain('/Users/');
+    expect(body).not.toContain('Error:');
+  });
+
+  it('returns clean not_found for booking with invalid offer ID', async () => {
+    const res = await request(app)
+      .post('/api/offers/doesnotexist/book')
+      .send({ slotIndex: 0, name: 'Test', email: 'test@test.com' });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Offer not found');
+
+    const body = JSON.stringify(res.body);
+    expect(body).not.toContain('stack');
+    expect(body).not.toContain('node_modules');
+  });
+
+  it('booking error responses use only allowed error codes', async () => {
+    const offer = await store.createOffer({
+      ownerEmail: 'test@example.com',
+      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      duration: 30,
+      tokens: {},
+    });
+    await store.updateOffer(offer.id, { expiresAt: new Date('2020-01-01').toISOString() });
+
+    const res = await request(app)
+      .post(`/api/offers/${offer.id}/book`)
+      .send({ slotIndex: 0, name: 'Test', email: 'test@test.com' });
+
+    // Should be one of the allowed error codes
+    const allowedCodes = ['conflict', 'offer_stale', 'expired', 'offer_expired', 'not_found', 'slot_claimed', 'slot_conflict', 'auth_expired'];
+    if (res.body.code) {
+      expect(allowedCodes).toContain(res.body.code);
+    }
+  });
+});
