@@ -226,17 +226,16 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
       <div className="owner-toolbar">
         <h2>Pick your slots</h2>
         <div className="toolbar-controls">
-          <div className="duration-selector">
-            {[30, 45, 60].map((d) => (
-              <button
-                key={d}
-                className={`duration-btn${duration === d ? ' active' : ''}`}
-                onClick={() => onDurationChange(d)}
-              >
-                {d}m
-              </button>
-            ))}
-          </div>
+          <select
+            className="duration-select"
+            value={duration}
+            onChange={(e) => onDurationChange(Number(e.target.value))}
+          >
+            <option value={15}>15 min</option>
+            <option value={30}>30 min</option>
+            <option value={45}>45 min</option>
+            <option value={60}>60 min</option>
+          </select>
           {selected.size > 0 && (
             <button className="btn-clear" onClick={() => setSelected(new Set())}>
               Clear

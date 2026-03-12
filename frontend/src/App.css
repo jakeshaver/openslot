@@ -251,38 +251,40 @@ body {
   gap: 0.6rem;
 }
 
-.duration-selector {
-  display: flex;
+.duration-select {
   background: var(--bg-glass);
-  border: 1px solid var(--border-glass);
+  border: 1px solid rgba(0, 168, 255, 0.3);
+  color: var(--blue);
+  padding: 0.4rem 2rem 0.4rem 0.75rem;
   border-radius: var(--radius-sm);
-  padding: 3px;
-  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  outline: none;
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
-}
-
-.duration-btn {
-  padding: 0.35rem 0.75rem;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  cursor: pointer;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%2300A8FF" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
   transition: all 0.2s ease;
 }
 
-.duration-btn:hover {
-  color: var(--blue);
+.duration-select:hover {
+  border-color: var(--blue);
+  box-shadow: var(--shadow-blue-sm);
 }
 
-.duration-btn.active {
-  background: var(--amber-dim);
-  color: var(--amber);
-  box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.1);
+.duration-select:focus {
+  border-color: var(--blue);
+  box-shadow: var(--shadow-blue-sm);
+}
+
+.duration-select option {
+  background: #0f1628;
+  color: var(--blue);
 }
 
 /* Generate Message — amber CTA */
