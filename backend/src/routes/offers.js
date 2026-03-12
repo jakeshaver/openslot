@@ -172,6 +172,11 @@ router.post('/:offerId/book', async (req, res) => {
     // Mark slot as claimed
     await store.claimSlot(offer.id, slotIndex, { name, email });
 
+    // Fire-and-forget: send owner a notification email via Gmail
+    sendOwnerNotification(oauth2Client, offer, slot, name, email).catch((err) => {
+      console.error('Owner notification email failed:', err.message);
+    });
+
     res.json({
       success: true,
       booking: {
@@ -225,6 +230,47 @@ async function checkAllSlotsConflicted(offer, calendar) {
   }
 
   return true; // All slots are conflicted
+}
+
+/**
+ * Send a notification email to the owner via Gmail API.
+ */
+async function sendOwnerNotification(oauth2Client, offer, slot, guestName, guestEmail) {
+  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  const tz = offer.timezone || 'America/New_York';
+
+  const startDate = new Date(slot.start);
+  const dayLabel = startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+  const startTime = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+  const endTime = new Date(slot.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: tz });
+
+  const subject = `New booking: ${guestName} — ${dayLabel} at ${startTime}`;
+  const body = [
+    `You have a new booking via OpenSlot.`,
+    ``,
+    `Guest: ${guestName}`,
+    `Email: ${guestEmail}`,
+    `Date: ${dayLabel}`,
+    `Time: ${startTime} – ${endTime}`,
+    `Duration: ${offer.duration} minutes`,
+    ``,
+    `A calendar event has been created automatically.`,
+  ].join('\n');
+
+  const message = [
+    `To: ${offer.ownerEmail}`,
+    `Subject: ${subject}`,
+    `Content-Type: text/plain; charset=utf-8`,
+    ``,
+    body,
+  ].join('\n');
+
+  const encoded = Buffer.from(message).toString('base64url');
+
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw: encoded },
+  });
 }
 
 module.exports = router;
