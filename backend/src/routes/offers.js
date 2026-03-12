@@ -189,7 +189,7 @@ router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1
 
     // Fire-and-forget: send owner a notification email via Gmail
     sendOwnerNotification(oauth2Client, offer, slot, name, email).catch((err) => {
-      console.error('Owner notification email failed:', err.message);
+      console.error('Owner notification email failed:', err.message, err.response?.data || err.code || '');
     });
 
     res.json({
@@ -273,12 +273,14 @@ async function sendOwnerNotification(oauth2Client, offer, slot, guestName, guest
   ].join('\n');
 
   const message = [
+    `From: ${offer.ownerEmail}`,
     `To: ${offer.ownerEmail}`,
     `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
     `Content-Type: text/plain; charset=utf-8`,
     ``,
     body,
-  ].join('\n');
+  ].join('\r\n');
 
   const encoded = Buffer.from(message).toString('base64url');
 
