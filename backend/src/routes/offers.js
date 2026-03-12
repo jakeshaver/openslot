@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 const { createOAuth2Client } = require('../config/google');
 const { requireAuth } = require('../middleware/auth');
 const store = require('../store');
+const { rateLimit } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
@@ -88,7 +89,7 @@ router.get('/:offerId', async (req, res) => {
  * Does a LIVE conflict check against the owner's Google Calendar
  * before confirming the booking.
  */
-router.post('/:offerId/book', async (req, res) => {
+router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1000 }), async (req, res) => {
   const { slotIndex, name, email } = req.body;
 
   if (typeof slotIndex !== 'number' || !name || !email) {
