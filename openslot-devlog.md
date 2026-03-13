@@ -33,7 +33,7 @@ Dark glassmorphism — deep navy base, semi-transparent glass panels with backdr
 
 ### UX Philosophy
 - The owner selects availability by dragging directly on a calendar grid — fast, visual, calendar-native
-- Selected windows are free-form; the booking increment is fixed (30/45/60 min set by owner)
+- Selected windows are free-form; the booking increment is fixed (15/30/45/60 min set by owner)
 - A dragged 10am–4pm window becomes 12 available 30-min slots for the recipient
 - No auto-holds on the calendar — real-time conflict check at booking time instead
 - Google Calendar's native invite handles confirmation — no email service dependency
@@ -97,6 +97,8 @@ Auto-holds would clutter the calendar with phantom events that may never materia
 
 All defaults are overridable via the Settings page (saved to Firestore per user).
 
+> **Note:** `daysAhead` is the backend default for calendar day range. The "Copy Availability Link" feature calculates however many calendar days are needed to cover 7 *working* days based on the user's configured schedule.
+
 ---
 
 ## Environment Variables
@@ -106,9 +108,10 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=
 GOOGLE_CALENDAR_ID=primary
-FIRESTORE_PROJECT_ID=
 SESSION_SECRET=
-BASE_URL=https://your-domain.com
+FRONTEND_URL=http://localhost:3000
+PORT=3001
+NODE_ENV=development
 ```
 
 All secrets live in `.env` locally. `.env.example` is committed to the repo as a template — never commit `.env` itself.
@@ -437,7 +440,7 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
-### Bug Fixes — March 13, 2026
+### Sprint 12 — QA Bug Fixes ✅ March 2026
 **Outcome:** Four bugs fixed and deployed. Copy Availability Link now works correctly across all scenarios.
 
 **Bug Fix 1 — Copy Availability Link only showing today's slots:**

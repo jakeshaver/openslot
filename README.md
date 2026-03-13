@@ -57,6 +57,7 @@ Go to [console.cloud.google.com](https://console.cloud.google.com) and create a 
 In your GCP project, go to **APIs & Services > Library** and enable:
 
 - **Google Calendar API**
+- **Gmail API**
 
 ### 3. Configure OAuth consent screen
 
@@ -93,7 +94,7 @@ Copy `.env.example` to `.env` at the repo root and fill in the values:
 | `GOOGLE_CALENDAR_ID` | Which calendar to use | `primary` uses your main calendar (default) |
 | `SESSION_SECRET` | Random string for cookie signing | Generate any random string |
 | `FRONTEND_URL` | Frontend origin for CORS | `http://localhost:3000` for local dev |
-| `PORT` | Backend server port | `8080` default, backend runs on 3001 via npm script |
+| `PORT` | Backend server port | Set to `3001` for local dev (frontend proxy expects 3001) |
 | `NODE_ENV` | Environment mode | `development` for local dev |
 
 ## Local Development
@@ -131,7 +132,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with Google. The
 ## How It Works
 
 OpenSlot has two offer types:
-- **Full Availability** is a one-click button that copies a booking URL covering all your available slots for the next 7 days. 
+- **Full Availability** is a one-click button that copies a booking URL covering all your available slots across the next 7 working days (based on your configured schedule).
 - **Curated Offers** let you drag specific time windows on the week grid and generate a personal message with one booking link per window — designed to paste into an email or DM.
 
 Both offer types are single-use. When a recipient opens a booking link, they see available time slots with a real-time conflict check against your current calendar. They pick a time, enter their name and email, and a calendar event is created for both of you with a Google Meet link attached.

@@ -526,9 +526,10 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=
 GOOGLE_CALENDAR_ID=primary
-FIRESTORE_PROJECT_ID=
 SESSION_SECRET=
-BASE_URL=https://your-domain.com
+FRONTEND_URL=http://localhost:3000
+PORT=3001
+NODE_ENV=development
 ```
 
 All secrets live in `.env` locally and in Cloud Run environment variables on production. See `.env.example` in the repo for the full list. Never include actual values in planning documents.
