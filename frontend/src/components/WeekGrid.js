@@ -285,9 +285,13 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
           {/* Grid rows */}
           {Array.from({ length: ROWS }, (_, row) => {
             const { label, isHour } = formatHour(row, startHour, cellMinutes);
+            const isFirstRow = row === 0;
             return (
               <React.Fragment key={row}>
-                <div className={`grid-time-label${!isHour ? ' half-hour' : ''}`}>
+                <div
+                  className={`grid-time-label${!isHour ? ' half-hour' : ''}`}
+                  style={isFirstRow ? { marginTop: '0.4rem' } : undefined}
+                >
                   {label}
                 </div>
                 {weekDates.map((_, dayIdx) => {
@@ -311,6 +315,7 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
                     <div
                       key={key}
                       className={className}
+                      style={isFirstRow ? { marginTop: '0.4rem' } : undefined}
                       onMouseDown={() => handleMouseDown(dayIdx, row)}
                       onMouseEnter={() => handleMouseEnter(dayIdx, row)}
                     />

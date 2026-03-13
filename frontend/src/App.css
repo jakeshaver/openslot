@@ -528,10 +528,8 @@ a.app-logo {
   transition: all 0.2s ease;
 }
 
-/* First body row — clear separation from header */
-.week-grid > :nth-child(n+7):nth-child(-n+12) {
-  margin-top: 0.4rem;
-}
+/* First body row margin is applied dynamically via inline styles in WeekGrid.js
+   to account for variable numbers of working-day columns. */
 
 .grid-time-label.half-hour {
   color: transparent;

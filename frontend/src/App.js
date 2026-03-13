@@ -171,9 +171,28 @@ function App() {
   const handleCopyAvailabilityLink = useCallback(async () => {
     if (linkSaving) return;
     setLinkSaving(true);
+
+    // Immediately create and select a textarea to preserve user gesture for iOS Safari
+    const textarea = document.createElement('textarea');
+    textarea.value = ' ';
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
     try {
+      // Always fetch fresh 7-day availability from now, independent of WeekGrid view
+      const params = new URLSearchParams();
+      params.set('daysAhead', '7');
+      const res = await fetch(`${API_BASE}/api/availability?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch availability');
+      const data = await res.json();
+      const freshSlots = data.slots;
+
       const windows = [];
-      const sorted = [...slots].sort((a, b) => new Date(a.start) - new Date(b.start));
+      const sorted = [...freshSlots].sort((a, b) => new Date(a.start) - new Date(b.start));
       for (const slot of sorted) {
         const last = windows[windows.length - 1];
         if (last && new Date(last.end).getTime() >= new Date(slot.start).getTime()) {
@@ -185,19 +204,46 @@ function App() {
         }
       }
 
+      if (windows.length === 0) return;
+
       const offer = await createOffer(windows, duration);
       if (!offer) return;
 
       const url = `${window.location.origin}/book/${offer.id}`;
-      const copied = await copyToClipboard(url);
+
+      // Try modern clipboard API first (works on desktop)
+      let copied = false;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(url);
+          copied = true;
+        } catch {
+          // Fall through to textarea fallback
+        }
+      }
+
+      // Fallback: update the pre-selected textarea and copy (works on iOS Safari)
+      if (!copied) {
+        textarea.value = url;
+        textarea.select();
+        textarea.setSelectionRange(0, url.length);
+        try {
+          document.execCommand('copy');
+          copied = true;
+        } catch {
+          // Copy failed
+        }
+      }
+
       if (copied) {
         setLinkCopied(true);
         setTimeout(() => setLinkCopied(false), 2000);
       }
     } finally {
+      document.body.removeChild(textarea);
       setLinkSaving(false);
     }
-  }, [slots, duration, createOffer, linkSaving, copyToClipboard]);
+  }, [duration, createOffer, linkSaving]);
 
   // Send Slots — get windows from WeekGrid, create offer, show modal
   const handleSendSlots = useCallback(async () => {
@@ -284,7 +330,7 @@ function App() {
                 )}
                 <button
                   className={`btn-copy-link${linkCopied ? ' copied' : ''}`}
-                  disabled={slots.length === 0 || linkSaving}
+                  disabled={linkSaving}
                   onClick={handleCopyAvailabilityLink}
                 >
                   {linkSaving ? 'Saving...' : linkCopied ? 'Copied!' : 'Copy Availability Link'}
@@ -331,7 +377,7 @@ function App() {
                     </div>
                     <button
                       className={`btn-copy-avail-mobile${linkCopied ? ' copied' : ''}`}
-                      disabled={slots.length === 0 || linkSaving}
+                      disabled={linkSaving}
                       onClick={handleCopyAvailabilityLink}
                     >
                       {linkSaving ? 'Saving...' : linkCopied ? 'Copied!' : 'Copy Availability Link'}
