@@ -283,6 +283,13 @@ export default function PublicBooking() {
           setErrorCode('offer_expired');
           return;
         }
+        if (data.code === 'slot_expired') {
+          setBookingError('This time has already passed. Please pick another slot.');
+          await fetchOffer();
+          setShowForm(false);
+          setSelectedSlotIdx(null);
+          return;
+        }
         if (data.code === 'offer_stale') {
           setError('All offered times are no longer available. Please ask for new times.');
           setErrorCode('offer_stale');

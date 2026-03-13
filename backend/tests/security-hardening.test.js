@@ -2,6 +2,10 @@ const request = require('supertest');
 const app = require('../src/app');
 const store = require('../src/store');
 
+// Future dates for tests (slots must be in the future to pass past-time filtering)
+const FUTURE_START = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+const FUTURE_END = new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString();
+
 beforeEach(async () => {
   await store.clearAll();
 });
@@ -48,7 +52,7 @@ describe('Rate limiting on POST /api/offers/:offerId/book', () => {
   beforeEach(async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: { access_token: 'test' },
     });
@@ -96,7 +100,7 @@ describe('Calendar data leakage — public routes', () => {
   it('GET /api/offers/:offerId returns no calendar metadata', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'owner@example.com',
-      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: { access_token: 'secret-token', refresh_token: 'secret-refresh' },
     });
@@ -131,7 +135,7 @@ describe('Calendar data leakage — public routes', () => {
   it('GET /api/offers/:offerId returns only whitelisted offer fields', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'owner@example.com',
-      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: { access_token: 'test' },
       timezone: 'America/New_York',
@@ -147,7 +151,7 @@ describe('Live availability check on GET /api/offers/:offerId', () => {
   it('still returns offer data when live check is not available (fallback)', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: { access_token: 'invalid-token' },
     });
@@ -186,7 +190,7 @@ describe('Error message hardening — public routes', () => {
   it('booking error responses use only allowed error codes', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-15T14:00:00Z', end: '2026-03-15T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: {},
     });

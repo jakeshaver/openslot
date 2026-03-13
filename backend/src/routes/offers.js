@@ -70,6 +70,10 @@ router.get('/:offerId', async (req, res) => {
     status: s.status,
   }));
 
+  // Filter out past slots — silently remove any slot whose start time has passed
+  const now = new Date();
+  slots = slots.filter((s) => new Date(s.start) > now);
+
   // Live calendar check — filter out slots that now conflict with owner's calendar
   if (offer.tokens) {
     try {
@@ -100,6 +104,11 @@ router.get('/:offerId', async (req, res) => {
   } else {
     // No tokens — fall back to snapshot (filter out claimed slots)
     slots = slots.filter((s) => s.status === 'available');
+  }
+
+  // If no slots remain after filtering, treat as stale
+  if (slots.length === 0) {
+    return res.status(410).json({ error: 'All offered times have passed or are no longer available', code: 'offer_stale' });
   }
 
   // SECURITY: Public view — explicitly whitelist returned fields.
@@ -154,6 +163,11 @@ router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1
 
   if (slot.status === 'claimed') {
     return res.status(409).json({ error: 'Slot already claimed', code: 'slot_claimed' });
+  }
+
+  // Check if the slot's start time has already passed
+  if (new Date(slot.start) <= new Date()) {
+    return res.status(410).json({ error: 'This time has already passed. Please pick another slot.', code: 'slot_expired' });
   }
 
   // Real-time conflict check against owner's Google Calendar

@@ -2,6 +2,17 @@ const request = require('supertest');
 const app = require('../src/app');
 const store = require('../src/store');
 
+// Generate future dates for tests (slots must be in the future to pass past-time filtering)
+function futureDate(hoursAhead, durationHours = 0) {
+  const d = new Date(Date.now() + hoursAhead * 60 * 60 * 1000);
+  if (durationHours) d.setTime(d.getTime() + durationHours * 60 * 60 * 1000);
+  return d.toISOString();
+}
+const FUTURE_START = futureDate(24);      // tomorrow
+const FUTURE_END = futureDate(26);        // tomorrow + 2h
+const FUTURE_START_2 = futureDate(48);    // day after tomorrow
+const FUTURE_END_2 = futureDate(49);      // day after tomorrow + 1h
+
 beforeEach(async () => {
   await store.clearAll();
 });
@@ -33,7 +44,7 @@ describe('GET /api/offers/:offerId', () => {
   it('returns offer data without tokens', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-10T14:00:00Z', end: '2026-03-10T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: { access_token: 'secret' },
     });
@@ -51,7 +62,7 @@ describe('GET /api/offers/:offerId', () => {
   it('returns 410 for expired offer', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-10T14:00:00Z', end: '2026-03-10T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: {},
     });
@@ -61,6 +72,19 @@ describe('GET /api/offers/:offerId', () => {
     const res = await request(app).get(`/api/offers/${offer.id}`);
     expect(res.status).toBe(410);
     expect(res.body.code).toBe('offer_expired');
+  });
+
+  it('returns 410 when all slots are in the past', async () => {
+    const offer = await store.createOffer({
+      ownerEmail: 'test@example.com',
+      windows: [{ start: '2024-01-01T14:00:00Z', end: '2024-01-01T16:00:00Z' }],
+      duration: 30,
+      tokens: {},
+    });
+
+    const res = await request(app).get(`/api/offers/${offer.id}`);
+    expect(res.status).toBe(410);
+    expect(res.body.code).toBe('offer_stale');
   });
 });
 
@@ -75,7 +99,7 @@ describe('POST /api/offers/:offerId/book', () => {
   it('returns 400 for missing fields', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-10T14:00:00Z', end: '2026-03-10T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: {},
     });
@@ -89,7 +113,7 @@ describe('POST /api/offers/:offerId/book', () => {
   it('returns 409 for already-claimed slot', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-10T14:00:00Z', end: '2026-03-10T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: { access_token: 'test' },
     });
@@ -107,7 +131,7 @@ describe('POST /api/offers/:offerId/book', () => {
   it('returns 410 for expired offer booking attempt', async () => {
     const offer = await store.createOffer({
       ownerEmail: 'test@example.com',
-      windows: [{ start: '2026-03-10T14:00:00Z', end: '2026-03-10T16:00:00Z' }],
+      windows: [{ start: FUTURE_START, end: FUTURE_END }],
       duration: 30,
       tokens: {},
     });
@@ -118,6 +142,21 @@ describe('POST /api/offers/:offerId/book', () => {
       .send({ slotIndex: 0, name: 'Test', email: 'test@test.com' });
     expect(res.status).toBe(410);
     expect(res.body.code).toBe('offer_expired');
+  });
+
+  it('returns 410 for past-time slot booking attempt', async () => {
+    const offer = await store.createOffer({
+      ownerEmail: 'test@example.com',
+      windows: [{ start: '2024-01-01T14:00:00Z', end: '2024-01-01T16:00:00Z' }],
+      duration: 30,
+      tokens: {},
+    });
+
+    const res = await request(app)
+      .post(`/api/offers/${offer.id}/book`)
+      .send({ slotIndex: 0, name: 'Test', email: 'test@test.com' });
+    expect(res.status).toBe(410);
+    expect(res.body.code).toBe('slot_expired');
   });
 });
 
