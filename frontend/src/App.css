@@ -379,6 +379,8 @@ a.app-logo {
   box-shadow: var(--shadow-dark);
   user-select: none;
   -webkit-user-select: none;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .week-nav {
@@ -387,6 +389,10 @@ a.app-logo {
   justify-content: space-between;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border-glass);
+  position: sticky;
+  top: 0;
+  z-index: 11;
+  background: var(--bg-deep);
 }
 
 .week-nav h3 {
@@ -471,8 +477,11 @@ a.app-logo {
   padding: 0.75rem 0.5rem;
   text-align: center;
   border-bottom: 1px solid var(--border-glass);
-  border-left: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(255, 255, 255, 0.02);
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--bg-deep);
+  position: sticky;
+  top: 51px;
+  z-index: 10;
 }
 
 .grid-header-cell:first-child {
@@ -503,7 +512,10 @@ a.app-logo {
 
 .grid-corner {
   border-bottom: 1px solid var(--border-glass);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-deep);
+  position: sticky;
+  top: 51px;
+  z-index: 10;
 }
 
 .grid-body {
@@ -516,7 +528,7 @@ a.app-logo {
   font-size: 0.65rem;
   font-weight: 500;
   color: var(--blue);
-  opacity: 0.5;
+  opacity: 0.8;
   text-align: right;
   display: flex;
   align-items: flex-start;
@@ -524,7 +536,7 @@ a.app-logo {
   padding-top: 0;
   margin-top: -0.4rem;
   height: 34px;
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(255, 255, 255, 0.10);
   transition: all 0.2s ease;
 }
 
@@ -537,8 +549,8 @@ a.app-logo {
 
 .grid-cell {
   height: 34px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
   position: relative;
   cursor: pointer;
   transition: all 0.12s ease;
