@@ -980,6 +980,22 @@ body {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.booking-form-field input.input-error {
+  border-color: #F43F5E;
+}
+
+.booking-form-field input.input-error:focus {
+  border-color: #F43F5E;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.15);
+}
+
+.field-error {
+  color: #F43F5E;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
 .btn-book {
   background: var(--amber-dim);
   color: var(--amber);

@@ -105,6 +105,7 @@ export default function PublicBooking() {
   const [showForm, setShowForm] = useState(false);
   const [bookingName, setBookingName] = useState('');
   const [bookingEmail, setBookingEmail] = useState('');
+  const [emailError, setEmailError] = useState(null);
   const [booking, setBooking] = useState(false);
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
@@ -230,8 +231,34 @@ export default function PublicBooking() {
     setBookingError(null);
   };
 
+  const validateEmail = (email) => {
+    const trimmed = email.trim();
+    if (!trimmed) return null; // Don't show error on empty (required handles that)
+    if (!trimmed.includes('@')) return 'Email must contain @';
+    const afterAt = trimmed.split('@')[1];
+    if (!afterAt || !afterAt.includes('.')) return 'Email must contain a . after @';
+    return null;
+  };
+
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setBookingEmail(val);
+    if (emailError) setEmailError(validateEmail(val));
+  };
+
+  const handleEmailBlur = () => {
+    setEmailError(validateEmail(bookingEmail));
+  };
+
+  const isEmailValid = bookingEmail.trim() && !validateEmail(bookingEmail);
+
   const handleBook = async (e) => {
     e.preventDefault();
+    const emailErr = validateEmail(bookingEmail);
+    if (emailErr) {
+      setEmailError(emailErr);
+      return;
+    }
     if (!bookingName.trim() || !bookingEmail.trim()) return;
 
     setBooking(true);
@@ -587,15 +614,18 @@ export default function PublicBooking() {
                         <input
                           type="email"
                           value={bookingEmail}
-                          onChange={(e) => setBookingEmail(e.target.value)}
+                          onChange={handleEmailChange}
+                          onBlur={handleEmailBlur}
                           placeholder="jane@company.com"
+                          className={emailError ? 'input-error' : ''}
                           required
                         />
+                        {emailError && <span className="field-error">{emailError}</span>}
                       </div>
                       <button
                         type="submit"
                         className="btn-book"
-                        disabled={booking || !bookingName.trim() || !bookingEmail.trim()}
+                        disabled={booking || !bookingName.trim() || !isEmailValid}
                       >
                         {booking ? 'Booking...' : 'Confirm Booking'}
                       </button>
