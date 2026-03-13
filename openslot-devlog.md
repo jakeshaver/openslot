@@ -377,6 +377,40 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 10 — PWA ✅ March 2026
+**Outcome:** OpenSlot is now installable as a PWA on iPhone home screen. Opens full-screen with no browser chrome. Mobile owner experience simplified. App icon matches approved Option B design.
+
+**Deliverable 1 — Web App Manifest:**
+- `manifest.json` in `public/` with `standalone` display mode, navy theme color, OpenSlot name
+- Icons at 192×192 and 512×512 linked in manifest
+
+**Deliverable 2 — App Icons:**
+- Option B calendar design: dark navy background, rounded calendar outline, header bar, grid lines, single amber cell
+- Generated programmatically via one-time Node.js Canvas script (script deleted after use)
+- Three sizes: 192×192, 512×512, 180×180 (Apple touch icon)
+
+**Deliverable 3 — Service Worker:**
+- Minimal `sw.js` — install and activate only, no caching or offline support
+- Satisfies PWA installability criteria without unnecessary complexity
+
+**Deliverable 4 — iOS Meta Tags:**
+- `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style` (black-translucent), `apple-mobile-web-app-title`
+- `theme-color` meta tag for Android/Chrome
+- Apple touch icon linked in `index.html`
+
+**Deliverable 5 — Mobile Owner Experience:**
+- On screens < 768px: week grid hidden, replaced with simplified mobile view
+- Mobile view contains only: duration selector dropdown (Arc Blue) and full-width "Copy Availability Link" button (Amber)
+- Nav bar on mobile hides redundant "Copy Availability Link" button and username — only gear icon and Sign Out remain
+- Desktop view completely unchanged
+
+**Key decisions:**
+- No offline support — app requires live calendar data, service worker is minimal
+- `cloudbuild.yaml` region corrected from `us-central1` to `us-east1` to match actual service
+- Mobile owner view uses CSS media queries for show/hide — no JS-based responsive logic needed
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
