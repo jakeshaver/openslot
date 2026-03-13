@@ -348,6 +348,35 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 9 — Open Source Release ✅ March 2026
+**Outcome:** Repo prepared for public open source release. README, LICENSE, and .env.example all in place.
+
+**Deliverable 1 — README.md:**
+- What is OpenSlot (2-sentence pitch)
+- 4 screenshot placeholders with descriptive labels
+- Features bullet list
+- Prerequisites (Google account, GCP project, Node.js 22)
+- Full GCP setup walkthrough: create project, enable Calendar + Gmail APIs, OAuth consent screen with all 5 scopes, create credentials
+- Environment variables table with plain-English descriptions and where to find each value
+- Local dev instructions with exact commands
+- How It Works section explaining both offer types
+- No Cloud Run deploy section (out of scope per spec)
+
+**Deliverable 2 — LICENSE:**
+- MIT license at repo root, copyright jakeshaver
+
+**Deliverable 3 — .env.example audit:**
+- Updated redirect URI and FRONTEND_URL to localhost defaults (was pointing to production placeholder)
+- Added NODE_ENV=development
+- Confirmed all env vars used in codebase are covered
+- `BASE_URL` and `FIRESTORE_PROJECT_ID` from spec are NOT used in code — omitted
+
+**Deliverable 4 — Hardcoded value audit:**
+- No owner-specific values (email, project ID, Cloud Run URL) found in source code
+- Cloud Run URL only appears in devlog and spec (documentation, not code)
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end

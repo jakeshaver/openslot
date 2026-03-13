@@ -398,7 +398,7 @@ INTEGRATION
 - [x] 9. Busy blocks are clearly distinguishable from free blocks at a glance
 - [x] 10. No console errors and full end-to-end booking flow works after all changes
 
-### Sprint 8 — Bug Fixes from Real-World Usage ⏳ Upcoming
+### Sprint 8 — Bug Fixes from Real-World Usage ✅
 **Goal:** Fix the two bugs surfaced from the first real external booking attempt.  
 **Definition of done:** "Copy Availability Link" correctly copies a `/book/:offerId` URL on iOS Firefox and iOS Safari. Booking form rejects malformed email addresses before submission.
 
@@ -412,48 +412,71 @@ INTEGRATION
 - Bug #5 — Booking form accepts malformed email addresses
 
 ### Sprint 8 — QA Checklist
-- [ ] 1. "Copy Availability Link" on iOS Firefox copies a valid `/book/:offerId` URL
-- [ ] 2. "Copy Availability Link" on iOS Safari copies a valid `/book/:offerId` URL
-- [ ] 3. Opening the copied URL on a fresh browser session shows the correct booking page
-- [ ] 4. Booking form shows inline error for missing `@` in email field
-- [ ] 5. Booking form shows inline error for missing `.` after `@` (e.g. `user@gmailcom`)
-- [ ] 6. Form does not submit while email is invalid
-- [ ] 7. Valid email clears the error and allows submission
-- [ ] 8. Error message styled correctly per design system (rose red, not amber or blue)
-- [ ] 9. No console errors during clipboard copy or form validation
-- [ ] 10. Full end-to-end booking flow still works after all changes
+- [x] 1. "Copy Availability Link" on iOS Firefox copies a valid `/book/:offerId` URL
+- [x] 2. "Copy Availability Link" on iOS Safari copies a valid `/book/:offerId` URL
+- [x] 3. Opening the copied URL on a fresh browser session shows the correct booking page
+- [x] 4. Booking form shows inline error for missing `@` in email field
+- [x] 5. Booking form shows inline error for missing `.` after `@` (e.g. `user@gmailcom`)
+- [x] 6. Form does not submit while email is invalid
+- [x] 7. Valid email clears the error and allows submission
+- [x] 8. Error message styled correctly per design system (rose red, not amber or blue)
+- [x] 9. No console errors during clipboard copy or form validation
+- [x] 10. Full end-to-end booking flow still works after all changes
 
 ---
 
 ### Sprint 9 — Open Source Release ⏳ Upcoming
-**Goal:** Make the repo ready for a public open source release. A complete stranger with a Google account and a GCP project should be able to clone, configure, and deploy OpenSlot without asking for help.  
-**Definition of done:** README covers the full setup journey. LICENSE file present. Repo is clean of any sensitive data. GitHub repo metadata polished.
+**Goal:** Make the repo ready for a public open source release. A technically capable person who has never used GCP before should be able to clone, configure, and run OpenSlot without asking for help.  
+**Definition of done:** README covers what the app does and local dev setup, with screenshot placeholders. LICENSE file added. `.env.example` reviewed and confirmed complete. Repo is clean of any owner-specific values.
 
 **Key decisions:**
-- README is the primary deliverable — walks through GCP project creation, OAuth setup, Firestore, local dev, and Cloud Run deploy from zero
-- Tone: written for a technically capable person who has never used GCP before
-- `LICENSE` file added as MIT
-- `.env.example` reviewed and confirmed complete
-- No `CONTRIBUTING.md` required for initial release — can be added later by community
-- GitHub repo description, topics, and social preview image updated before publish
+- Target audience: technically capable, GCP novice — explain GCP-specific steps clearly, don't assume prior knowledge
+- README covers: what the app does, prerequisites, local dev setup, environment variables reference
+- Screenshot placeholders included so owner knows exactly which screenshots to capture and add manually
+- Full Cloud Run deploy instructions are out of scope for README v1 — local dev is the entry point for contributors
+- `LICENSE` file added as MIT at repo root
+- `.env.example` reviewed and confirmed to contain all required variables with no real values
+- No `CONTRIBUTING.md` required for initial release
+- No hardcoded owner-specific values (email, project ID, GCP URL) anywhere in source code
 
-**Deliverables:**
-- `README.md` — full setup guide
-- `LICENSE` — MIT license file
-- `.env.example` — reviewed and confirmed complete
-- GitHub repo metadata — description, topics (`google-calendar`, `scheduling`, `self-hosted`, `open-source`, `nodejs`, `react`, `gcp`), social preview
+**Claude Code prompt:**
+> "Implement Sprint 9 for OpenSlot — prepare the repo for public open source release.
+>
+> **Deliverable 1 — README.md**
+> Write a complete `README.md` at the repo root. Audience: a technically capable person who has never used GCP before. Tone: clear, direct, no fluff.
+>
+> The README must cover these sections in order:
+> 1. **What is OpenSlot** — 2-3 sentence description of what the app does and why it exists
+> 2. **Screenshots** — 4 placeholder blocks: (a) week grid / slot picker, (b) generated message with booking links, (c) recipient booking page desktop, (d) recipient booking page mobile. Format: `<!-- SCREENSHOT: week-grid.png — Owner view showing the drag-to-select week grid -->`
+> 3. **Features** — short bullet list of what the app does
+> 4. **Prerequisites** — Google account, GCP project with billing enabled, Node.js 22, repo cloned locally
+> 5. **GCP Setup** — step by step: enable Google Calendar API and Gmail API, configure OAuth 2.0 credentials, add test users. Written for someone who has never opened GCP Console before.
+> 6. **Environment Variables** — table of every variable in `.env.example` with plain-English description and where to find each value
+> 7. **Local Development** — exact commands to install deps, create `.env`, and run both servers. Include localhost URLs.
+> 8. **How It Works** — 4-5 sentences explaining the two offer types so a new contributor understands the core UX
+>
+> Do not include a Cloud Run deploy section.
+>
+> **Deliverable 2 — LICENSE**
+> Create a `LICENSE` file at repo root with standard MIT license text. Use the repo owner's GitHub username in the copyright line.
+>
+> **Deliverable 3 — .env.example audit**
+> Review `.env.example` against all environment variables actually used in the codebase. Add any missing variables with placeholder values. Remove any that no longer exist.
+>
+> **Deliverable 4 — Hardcoded value audit**
+> Search the codebase for hardcoded owner-specific values: email addresses, GCP project IDs, Cloud Run URLs. Move to environment variables if found. Report what was changed."
 
 ### Sprint 9 — QA Checklist
 - [ ] 1. README present at repo root and renders correctly on GitHub
-- [ ] 2. Prerequisites section lists everything needed (Google account, GCP project, Node.js)
-- [ ] 3. GCP setup steps are accurate and complete
-- [ ] 4. OAuth configuration steps are accurate (scopes, redirect URI)
-- [ ] 5. Firestore setup steps are accurate
-- [ ] 6. Local dev instructions work on a clean clone (`npm install` + `.env` setup)
-- [ ] 7. Deploy instructions produce a working Cloud Run deployment
-- [ ] 8. `LICENSE` file present with MIT license text
-- [ ] 9. `.env.example` contains all required variables with no real values
-- [ ] 10. GitHub repo description and topics set before making repo public
+- [ ] 2. What is OpenSlot section clearly explains the app in 2-3 sentences
+- [ ] 3. All 4 screenshot placeholders present with descriptive labels
+- [ ] 4. GCP setup steps are accurate — Calendar API, Gmail API, OAuth, test users
+- [ ] 5. Environment variables table covers every variable with plain-English descriptions
+- [ ] 6. Local dev instructions work on a clean clone
+- [ ] 7. `LICENSE` file present at repo root with MIT license text
+- [ ] 8. `.env.example` contains all required variables with no real values
+- [ ] 9. No hardcoded owner-specific values remain in source code
+- [ ] 10. Repo set to public on GitHub after all files committed
 
 ---
 
