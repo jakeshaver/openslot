@@ -463,6 +463,10 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 - If an offer expired between page load and booking submission, the POST returned `offer_expired` but the frontend didn't check for that code, falling through to a generic error.
 - Fix: added `offer_expired` handler to the booking submission error flow, showing the proper expired error page.
 
+**Bug Fix 6 — iOS PWA clipboard write silently fails:**
+- In standalone PWA mode (or any mobile browser), the clipboard write strategy from Bug Fix 3 still silently fails because iOS invalidates the gesture context after the async offer creation API call, even with a pre-created textarea.
+- Fix: split behavior by platform. Desktop (>= 768px, not standalone) keeps the auto-copy approach. Mobile/PWA shows a "Generate Availability Link" button that reveals an inline glassmorphism panel with a read-only URL field and an amber clipboard icon. The icon triggers a fresh user gesture copy — no async between tap and clipboard write. Icon swaps to a checkmark for 2 seconds on success. Tapping the button again generates a new offer and replaces the URL.
+
 ---
 
 ## QA Standard
