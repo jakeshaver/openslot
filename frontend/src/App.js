@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import WeekGrid from './components/WeekGrid';
 import PublicBooking from './components/PublicBooking';
+import Reschedule from './components/Reschedule';
 import Settings from './components/Settings';
 import './App.css';
 
@@ -346,6 +347,7 @@ function App() {
   return (
     <Routes>
       <Route path="/book/:offerId" element={<PublicBooking />} />
+      <Route path="/reschedule/:offerId" element={<Reschedule />} />
       <Route path="/settings" element={
         <div className="app-shell">
           <header className="app-header">

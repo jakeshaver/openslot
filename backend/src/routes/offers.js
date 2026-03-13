@@ -210,7 +210,7 @@ router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1
           { email: offer.ownerEmail, responseStatus: 'accepted' },
           { email },
         ],
-        description: `Booked via OpenSlot by ${name} (${email})`,
+        description: `Reschedule: ${process.env.FRONTEND_URL || 'https://openslot-653554267204.us-east1.run.app'}/reschedule/${offer.id}\n\nBooked via OpenSlot by ${name} (${email})`,
         conferenceData: {
           createRequest: {
             requestId: crypto.randomUUID(),
@@ -221,8 +221,8 @@ router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1
       sendUpdates: 'all',
     });
 
-    // Mark slot as claimed
-    await store.claimSlot(offer.id, slotIndex, { name, email });
+    // Mark slot as claimed — include calendarEventId for rescheduling
+    await store.claimSlot(offer.id, slotIndex, { name, email, calendarEventId: event.data.id });
 
     // Fire-and-forget: send owner a notification email via Gmail
     sendOwnerNotification(oauth2Client, offer, slot, name, email).catch((err) => {
@@ -242,6 +242,163 @@ router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1
       return res.status(401).json({ error: 'Owner calendar access expired', code: 'auth_expired' });
     }
     res.status(500).json({ error: 'Failed to complete booking' });
+  }
+});
+
+/**
+ * GET /api/offers/:offerId/reschedule
+ * Public — fetch available slots for rescheduling.
+ */
+router.get('/:offerId/reschedule', async (req, res) => {
+  const offer = await store.getOffer(req.params.offerId);
+
+  if (!offer) {
+    return res.status(404).json({ error: 'Offer not found' });
+  }
+
+  // Only claimed offers can be rescheduled
+  const claimedSlot = offer.slots.find((s) => s.status === 'claimed' && s.bookedBy);
+  if (!claimedSlot) {
+    return res.status(400).json({ error: 'No booking found to reschedule', code: 'not_claimed' });
+  }
+
+  // Check if the original meeting end time has passed
+  if (new Date(claimedSlot.end) <= new Date()) {
+    return res.status(410).json({ error: 'This meeting has already passed and can no longer be rescheduled.', code: 'reschedule_expired' });
+  }
+
+  const now = new Date();
+
+  // Get available slots from the original offer windows with live conflict check
+  let availableSlots = offer.slots
+    .map((s, idx) => ({ ...s, idx }))
+    .filter((s) => s.status === 'available' && new Date(s.start) > now);
+
+  if (offer.tokens && availableSlots.length > 0) {
+    try {
+      const { calendar } = createCalendarClient(offer.tokens);
+      const { earliest, latest } = getSlotBounds(availableSlots);
+      const busyEvents = await fetchBusyEvents(calendar, earliest, latest);
+
+      availableSlots = availableSlots.filter((s) => {
+        const slotStart = new Date(s.start).getTime();
+        const slotEnd = new Date(s.end).getTime();
+        return !hasConflict(slotStart, slotEnd, busyEvents);
+      });
+    } catch (err) {
+      console.error('Reschedule live check failed, using snapshot:', err.message);
+    }
+  }
+
+  res.json({
+    offer: {
+      id: offer.id,
+      duration: offer.duration,
+      timezone: offer.timezone,
+      slots: availableSlots.map((s) => ({ start: s.start, end: s.end, idx: s.idx })),
+    },
+    currentBooking: {
+      start: claimedSlot.start,
+      end: claimedSlot.end,
+      name: claimedSlot.bookedBy.name,
+    },
+  });
+});
+
+/**
+ * POST /api/offers/:offerId/reschedule
+ * Public — reschedule a booking to a new slot.
+ * Body: { slotIndex }
+ */
+router.post('/:offerId/reschedule', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1000 }), async (req, res) => {
+  const { slotIndex } = req.body;
+
+  if (typeof slotIndex !== 'number') {
+    return res.status(400).json({ error: 'slotIndex is required' });
+  }
+
+  const offer = await store.getOffer(req.params.offerId);
+
+  if (!offer) {
+    return res.status(404).json({ error: 'Offer not found' });
+  }
+
+  // Find the currently claimed slot
+  const claimedIdx = offer.slots.findIndex((s) => s.status === 'claimed' && s.bookedBy);
+  const claimedSlot = claimedIdx >= 0 ? offer.slots[claimedIdx] : null;
+
+  if (!claimedSlot) {
+    return res.status(400).json({ error: 'No booking found to reschedule', code: 'not_claimed' });
+  }
+
+  // Check if the original meeting end time has passed
+  if (new Date(claimedSlot.end) <= new Date()) {
+    return res.status(410).json({ error: 'This meeting has already passed and can no longer be rescheduled.', code: 'reschedule_expired' });
+  }
+
+  const newSlot = offer.slots[slotIndex];
+  if (!newSlot) {
+    return res.status(400).json({ error: 'Invalid slot index' });
+  }
+
+  if (newSlot.status !== 'available') {
+    return res.status(409).json({ error: 'This slot is not available', code: 'slot_claimed' });
+  }
+
+  // Check if the new slot's start time has passed
+  if (new Date(newSlot.start) <= new Date()) {
+    return res.status(410).json({ error: 'This time has already passed. Please pick another slot.', code: 'slot_expired' });
+  }
+
+  try {
+    const { calendar } = createCalendarClient(offer.tokens);
+
+    // Live conflict check on the new slot
+    const conflicts = await fetchBusyEvents(calendar, new Date(newSlot.start), new Date(newSlot.end));
+
+    if (conflicts.length > 0) {
+      return res.status(409).json({ error: 'This time slot is no longer available', code: 'slot_conflict' });
+    }
+
+    // Patch the existing calendar event — only update start/end
+    const calendarEventId = claimedSlot.bookedBy.calendarEventId;
+    await calendar.events.patch({
+      calendarId: CALENDAR_ID,
+      eventId: calendarEventId,
+      requestBody: {
+        start: { dateTime: newSlot.start },
+        end: { dateTime: newSlot.end },
+      },
+      sendUpdates: 'all',
+    });
+
+    // Free up the old slot, claim the new one
+    const updatedSlots = [...offer.slots];
+    updatedSlots[claimedIdx] = { ...updatedSlots[claimedIdx], status: 'available', bookedBy: null };
+    updatedSlots[slotIndex] = {
+      ...updatedSlots[slotIndex],
+      status: 'claimed',
+      bookedBy: { ...claimedSlot.bookedBy },
+    };
+
+    // Update offer status — if it was fully claimed before, it's active again
+    const allClaimed = updatedSlots.every((s) => s.status === 'claimed');
+    const newStatus = allClaimed ? 'claimed' : 'active';
+
+    await store.updateOffer(offer.id, { slots: updatedSlots, status: newStatus });
+
+    res.json({
+      success: true,
+      booking: {
+        slot: { start: newSlot.start, end: newSlot.end },
+      },
+    });
+  } catch (err) {
+    console.error('Reschedule error:', err.message);
+    if (err.code === 401) {
+      return res.status(401).json({ error: 'Owner calendar access expired', code: 'auth_expired' });
+    }
+    res.status(500).json({ error: 'Failed to reschedule booking' });
   }
 });
 

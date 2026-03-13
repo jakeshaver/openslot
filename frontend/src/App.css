@@ -733,6 +733,17 @@ a.app-logo {
   font-size: 0.9rem;
 }
 
+.reschedule-current {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--blue-dim);
+  border: 1px solid rgba(0, 168, 255, 0.2);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--blue-bright);
+}
+
 /* Mini Calendar */
 .mini-calendar {
   background: var(--bg-glass);
