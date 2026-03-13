@@ -165,7 +165,7 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 ---
 
 ### Sprint 3 — Booking Page ✅ March 2026
-**Outcome:** Public booking page at `/book/:offerId`. Calendly-style layout — month calendar on left, time slots for the selected day on right. Booking form (name + email). Google Calendar event created with booker as attendee. Confirmation screen on success. Expired/stale offer error pages. Mobile-friendly layout.
+**Outcome:** Public booking page at `/book/:offerId`. Month calendar on left, time slots for the selected day on right. Booking form (name + email). Google Calendar event created with booker as attendee. Confirmation screen on success. Expired/stale offer error pages. Mobile-friendly layout.
 
 **Key decisions:**
 - No account required for recipients

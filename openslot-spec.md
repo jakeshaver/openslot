@@ -512,4 +512,4 @@ BASE_URL=https://your-domain.com
 ## Success Metrics (Personal)
 - You send your first real booking link to a recruiter
 - The recruiter books without asking a follow-up question
-- Zero Calendly fees paid going forward
+- Zero third-party scheduling service fees paid going forward
