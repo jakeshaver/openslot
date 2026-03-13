@@ -34,23 +34,25 @@ function getWeekDates(offset = 0, workingDays = DEFAULT_WORKING_DAYS) {
   return dates;
 }
 
-function formatHour(row, startHour) {
-  const hour = startHour + Math.floor(row / 2);
-  const min = row % 2 === 0 ? '00' : '30';
+function formatHour(row, startHour, cellMinutes) {
+  const totalMinutes = row * cellMinutes;
+  const hour = startHour + Math.floor(totalMinutes / 60);
+  const min = String(totalMinutes % 60).padStart(2, '0');
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const h = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return { label: `${h}:${min} ${ampm}`, isHour: row % 2 === 0 };
+  return { label: `${h}:${min} ${ampm}`, isHour: totalMinutes % 60 === 0 };
 }
 
 function cellKey(dayIdx, row) {
   return `${dayIdx}-${row}`;
 }
 
-function isSlotAvailable(dayDate, row, availableSlots, startHour) {
+function isSlotAvailable(dayDate, row, availableSlots, startHour, cellMinutes) {
+  const totalMinutes = row * cellMinutes;
   const cellStart = new Date(dayDate);
-  cellStart.setHours(startHour + Math.floor(row / 2), (row % 2) * 30, 0, 0);
+  cellStart.setHours(startHour + Math.floor(totalMinutes / 60), totalMinutes % 60, 0, 0);
   const cellEnd = new Date(cellStart);
-  cellEnd.setMinutes(cellEnd.getMinutes() + 30);
+  cellEnd.setMinutes(cellEnd.getMinutes() + cellMinutes);
 
   return availableSlots.some((slot) => {
     const slotStart = new Date(slot.start);
@@ -71,7 +73,9 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
   const workingDays = propWorkingDays || DEFAULT_WORKING_DAYS;
   const startHour = propWorkingHours ? Math.floor(parseHour(propWorkingHours.start)) : DEFAULT_START_HOUR;
   const endHour = propWorkingHours ? Math.ceil(parseHour(propWorkingHours.end)) : DEFAULT_END_HOUR;
-  const ROWS = (endHour - startHour) * 2;
+  const cellMinutes = duration === 15 ? 15 : 30;
+  const rowsPerHour = 60 / cellMinutes;
+  const ROWS = (endHour - startHour) * rowsPerHour;
 
   const weekDatesData = getWeekDates(weekOffset, workingDays);
   const weekDates = weekDatesData.map((d) => d.date);
@@ -82,6 +86,11 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
   const weekLabel = firstDate && lastDate
     ? `${firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
     : '';
+
+  // Clear selection when duration changes (cell boundaries shift)
+  useEffect(() => {
+    setSelected(new Set());
+  }, [duration]);
 
   // Notify parent of selection changes
   useEffect(() => {
@@ -115,9 +124,11 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
 
       const date = weekDates[dayIdx];
       const windowStart = new Date(date);
-      windowStart.setHours(startHour + Math.floor(startRow / 2), (startRow % 2) * 30, 0, 0);
+      const startMin = startRow * cellMinutes;
+      windowStart.setHours(startHour + Math.floor(startMin / 60), startMin % 60, 0, 0);
       const windowEnd = new Date(date);
-      windowEnd.setHours(startHour + Math.floor((endRow + 1) / 2), ((endRow + 1) % 2) * 30, 0, 0);
+      const endMin = (endRow + 1) * cellMinutes;
+      windowEnd.setHours(startHour + Math.floor(endMin / 60), endMin % 60, 0, 0);
 
       windows.push({
         start: windowStart.toISOString(),
@@ -126,7 +137,7 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
     }
 
     return windows;
-  }, [selected, weekDates]);
+  }, [selected, weekDates, cellMinutes, startHour]);
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -146,7 +157,7 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
   const availableCells = new Set();
   weekDates.forEach((date, dayIdx) => {
     for (let row = 0; row < ROWS; row++) {
-      if (isSlotAvailable(date, row, slots, startHour)) {
+      if (isSlotAvailable(date, row, slots, startHour, cellMinutes)) {
         availableCells.add(cellKey(dayIdx, row));
       }
     }
@@ -273,7 +284,7 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
 
           {/* Grid rows */}
           {Array.from({ length: ROWS }, (_, row) => {
-            const { label, isHour } = formatHour(row, startHour);
+            const { label, isHour } = formatHour(row, startHour, cellMinutes);
             return (
               <React.Fragment key={row}>
                 <div className={`grid-time-label${!isHour ? ' half-hour' : ''}`}>
