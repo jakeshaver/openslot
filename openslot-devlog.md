@@ -288,6 +288,66 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 7 — Bug Fixes + UX Polish ✅ March 2026
+**Outcome:** Owner Gmail notification fixed, live calendar availability check added to booking page, duration selector redesigned as glassmorphism dropdown with 15-min support, calendar grid contrast improved. Dynamic grid cell granularity for 15-min duration.
+
+**Bug Fix 1 — Owner Gmail Notification:**
+- Fixed RFC 2822 message format: added `From:` header, `MIME-Version: 1.0`, switched to `\r\n` line endings
+- Full error details now logged (not just `err.message`) for visibility in Cloud Run logs
+
+**Bug Fix 2 — Stale Offer Availability (skipped):**
+- Already handled — `calendar.events.insert` runs before `store.claimSlot`, so invalid emails never claim slots
+
+**Bug Fix 3 — Live Calendar Check on Booking Page:**
+- `GET /api/offers/:offerId` now queries owner's Google Calendar using stored OAuth tokens
+- Slots that conflict with current calendar events are filtered out entirely (not shown as unavailable)
+- Falls back silently to Firestore snapshot if live check fails (expired token, API error)
+
+**UX 1 — Duration Selector Redesign:**
+- Pill buttons replaced with glassmorphism `<select>` dropdown
+- Supports 15, 30, 45, 60 min (added 15-min option)
+- Backend validation updated to accept `[15, 30, 45, 60]`
+- Styled with Arc Blue border, custom chevron, glass background, JetBrains Mono font
+
+**UX 2 — Calendar Grid Contrast (Variant B: Medium):**
+- Time labels: opacity 0.3 → 0.5
+- Busy hatch stripe: opacity 0.04 → 0.08, spacing 5px → 3px
+- Busy block base fill: added `rgba(255,255,255,0.05)`
+
+**Post-testing fix — Dynamic Grid Cell Granularity:**
+- WeekGrid grid cells were hardcoded to 30-min. When 15-min duration selected, grid now renders 4 cells per hour (15-min each) instead of 2 (30-min each)
+- `formatHour`, `isSlotAvailable`, `getSelectedWindows` all parameterized by `cellMinutes`
+- Selection auto-clears when duration changes (cell boundaries shift)
+- Fixes both the grid visual and the generated message copy (window times now match actual cell size)
+
+**Key decisions:**
+- Cell granularity is 15 min when duration is 15, otherwise 30 min — keeps grid manageable for longer durations
+- Bug Fix 2 skipped after confirming existing code already prevents the issue
+
+---
+
+### Sprint 8 — Bug Fixes from Real-World Usage ✅ March 2026
+**Outcome:** Two bugs from the first real external booking attempt fixed. Clipboard copy now works across iOS Firefox/Safari via fallback. Booking form validates email format before submission.
+
+**Bug Fix 1 — Copy Availability Link on iOS Firefox:**
+- Added `copyToClipboard` helper with `navigator.clipboard.writeText` as primary method
+- Fallback: creates temporary `<textarea>`, selects text with `setSelectionRange`, uses `document.execCommand('copy')`
+- Applied to all three clipboard write locations (Copy Availability Link, Send Slots modal, message copy)
+
+**Bug Fix 2 — Email Validation on Booking Form:**
+- Frontend validation: must contain `@` and a `.` after the `@`
+- Error shown on blur, clears as user corrects input
+- Submit button disabled while email is invalid
+- Inline error styled in Rose Red (`#F43F5E`) per design system
+- Backend already rejects invalid emails (Sprint 7) — this is the UX layer on top
+
+**Key decisions:**
+- Simple email check preferred over RFC 5322 regex — catches real typos like `user@gmailcom` without overcomplicating
+- No external validation library needed
+- Clipboard fallback uses `readonly` textarea to prevent iOS keyboard flash
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
