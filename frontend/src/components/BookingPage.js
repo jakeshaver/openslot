@@ -31,8 +31,6 @@ export default function BookingPage({ slots, duration = 30 }) {
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  const [claimed] = useState(new Set()); // will be populated from Firestore later
-
   // Divide free windows into duration-sized increments
   const slotIncrements = useMemo(() => {
     const increments = [];
@@ -170,11 +168,10 @@ export default function BookingPage({ slots, duration = 30 }) {
             <>
               <div className="slot-list-header">
                 <h3>{selectedDateLabel}</h3>
-                <p>{selectedDaySlots.filter((s) => !claimed.has(s.id)).length} slots available</p>
+                <p>{selectedDaySlots.length} slots available</p>
               </div>
               <div className="slot-list-items">
                 {selectedDaySlots.map((slot) => {
-                  const isClaimed = claimed.has(slot.id);
                   const isSelected = selectedSlot === slot.id;
                   const timeLabel = slot.start.toLocaleTimeString('en-US', {
                     hour: 'numeric',
@@ -187,14 +184,13 @@ export default function BookingPage({ slots, duration = 30 }) {
                   });
 
                   let className = 'slot-item';
-                  if (isClaimed) className += ' claimed';
                   if (isSelected) className += ' selected-slot';
 
                   return (
                     <div
                       key={slot.id}
                       className={className}
-                      onClick={() => !isClaimed && setSelectedSlot(isSelected ? null : slot.id)}
+                      onClick={() => setSelectedSlot(isSelected ? null : slot.id)}
                     >
                       <span className="slot-item-time">{timeLabel} – {endLabel}</span>
                       <span className="slot-item-duration">{duration} min</span>

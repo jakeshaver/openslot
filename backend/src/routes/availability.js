@@ -1,6 +1,5 @@
 const express = require('express');
-const { google } = require('googleapis');
-const { createOAuth2Client } = require('../config/google');
+const { createCalendarClient } = require('../helpers/calendar');
 const { requireAuth } = require('../middleware/auth');
 const { calculateAvailability, DEFAULT_CONFIG } = require('../availability');
 const store = require('../store');
@@ -17,10 +16,7 @@ const router = express.Router();
  */
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const oauth2Client = createOAuth2Client();
-    oauth2Client.setCredentials(req.session.tokens);
-
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const { oauth2Client, calendar } = createCalendarClient(req.session.tokens);
 
     // Load user's saved settings
     const userSettings = await store.getSettings(req.session.user.email) || {};

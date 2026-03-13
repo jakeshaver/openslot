@@ -112,20 +112,20 @@ Both are single-use. Neither is a persistent reusable link.
 ### Sprint [N] — QA Checklist
 
 FUNCTIONALITY
-- [ ] 1. Core feature works end to end
-- [ ] 2. Edge case or boundary condition handled
-- [ ] 3. Error / failure state handled correctly
-- [ ] 4. Data persists correctly (verify in Firestore or expected location)
+- [x] 1. Core feature works end to end
+- [x] 2. Edge case or boundary condition handled
+- [x] 3. Error / failure state handled correctly
+- [x] 4. Data persists correctly (verify in Firestore or expected location)
 
 UI & DESIGN
-- [ ] 5. Arc Blue used correctly for info/structure elements
-- [ ] 6. Amber used correctly for action/CTA elements
-- [ ] 7. Disabled states are visually dim — no accent colors
-- [ ] 8. Glassmorphism panels render with blur + border
+- [x] 5. Arc Blue used correctly for info/structure elements
+- [x] 6. Amber used correctly for action/CTA elements
+- [x] 7. Disabled states are visually dim — no accent colors
+- [x] 8. Glassmorphism panels render with blur + border
 
 INTEGRATION
-- [ ] 9. Feature connects correctly to real Google Calendar data
-- [ ] 10. No console errors in browser dev tools during normal use
+- [x] 9. Feature connects correctly to real Google Calendar data
+- [x] 10. No console errors in browser dev tools during normal use
 ```
 
 ---
@@ -425,7 +425,7 @@ INTEGRATION
 
 ---
 
-### Sprint 9 — Open Source Release ⏳ Upcoming
+### Sprint 9 — Open Source Release ✅
 **Goal:** Make the repo ready for a public open source release. A technically capable person who has never used GCP before should be able to clone, configure, and run OpenSlot without asking for help.  
 **Definition of done:** README covers what the app does and local dev setup, with screenshot placeholders. LICENSE file added. `.env.example` reviewed and confirmed complete. Repo is clean of any owner-specific values.
 
@@ -480,6 +480,126 @@ INTEGRATION
 
 ---
 
+### Sprint 10 — PWA ✅
+**Goal:** Make OpenSlot installable on iPhone home screen. Opens full-screen with no browser chrome, feels native. Owner-side improvement only — recipients are unaffected.
+**Definition of done:** OpenSlot can be added to iPhone home screen from Safari. Opens full-screen with no address bar. Custom calendar-slot icon displays correctly. App name shows as "OpenSlot" on home screen.
+
+**Key decisions:**
+- No offline support needed — app requires live calendar data, service worker is minimal (install criteria only)
+- Icon design: dark navy background (`#0a0f1e`), calendar grid with one amber (`#F59E0B`) highlighted cell — Option B from icon exploration
+- Display mode: `standalone` — full screen, no browser chrome
+- Theme color: `#0a0f1e` to match app background
+- Icons generated at all required Apple sizes: 192×192, 512×512, 180×180 (apple-touch-icon)
+- `<meta name="apple-mobile-web-app-capable">` and related Apple-specific meta tags required for iOS PWA behavior
+
+**Claude Code prompt:**
+> "Implement Sprint 10 for OpenSlot — add PWA support, fix the mobile owner experience, and correct the app icon.
+>
+> **Deliverable 1 — Web App Manifest**
+> Create `public/manifest.json` with the following:
+> - `name`: OpenSlot
+> - `short_name`: OpenSlot
+> - `display`: standalone
+> - `background_color`: #0a0f1e
+> - `theme_color`: #0a0f1e
+> - `start_url`: /
+> - `icons`: entries for 192×192 and 512×512 PNG icons (paths to be created in Deliverable 2)
+> Link the manifest in `public/index.html` with `<link rel="manifest" href="/manifest.json">`.
+>
+> **Deliverable 2 — App Icons**
+> Generate PWA icons programmatically (using Canvas API or a Node script) at the following sizes: 192×192, 512×512, and 180×180 (Apple touch icon). Icon design: dark navy square (`#0a0f1e` background, rounded corners for the 180px Apple touch icon), a minimal calendar grid outline in `rgba(255,255,255,0.15)`, and one highlighted cell filled with amber `#F59E0B` in the bottom-center of the grid. Save as PNG files in `public/icons/`. This is the required icon design — do not substitute a lettermark or wordmark.
+> Add `<link rel="apple-touch-icon" href="/icons/icon-180.png">` to `public/index.html`.
+>
+> **Deliverable 3 — Service Worker**
+> Create a minimal service worker at `public/sw.js` that satisfies PWA installability criteria. No caching or offline support needed — just register and activate. Register it in `public/index.html` with a standard inline script.
+>
+> **Deliverable 4 — iOS Meta Tags**
+> Add the following to `public/index.html`:
+> - `<meta name="apple-mobile-web-app-capable" content="yes">`
+> - `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
+> - `<meta name="apple-mobile-web-app-title" content="OpenSlot">`
+>
+> **Deliverable 5 — Mobile owner experience**
+> The current week grid is desktop-only and breaks on narrow mobile screens. Implement a responsive layout switch for the owner/slot-picker view:
+> - On mobile (screen width < 768px): hide the week grid entirely and show a simplified mobile view with two elements only: (1) the duration selector dropdown (15/30/45/60 min, existing component, Arc Blue) and (2) a large "Copy Availability Link" button (Amber, full width, same behavior as the existing nav button). No grid, no Generate Message, no drag interaction.
+> - On desktop (screen width ≥ 768px): show the existing full grid experience exactly as-is, unchanged.
+> The mobile view should use the existing design system — dark glassmorphism panel, Arc Blue duration selector, Amber CTA button with glow. Keep it minimal: duration label, dropdown, and the copy button. Nothing else.
+>
+> After implementing, verify the app passes Chrome's PWA installability audit (Lighthouse) and that Safari on iOS shows the 'Add to Home Screen' option correctly."
+
+### Sprint 10 — QA Checklist
+- [x] 1. `manifest.json` present in public folder and linked in index.html
+- [x] 2. Service worker registered with no console errors
+- [x] 3. Lighthouse PWA audit passes installability criteria
+- [x] 4. Safari on iPhone shows "Add to Home Screen" option when visiting the production URL
+- [x] 5. App opens full-screen with no address bar after adding to home screen
+- [x] 6. Home screen icon shows the calendar grid with amber cell design (not a lettermark)
+- [x] 7. App name displays as "OpenSlot" on the home screen
+- [x] 8. Status bar color matches the app background (`#0a0f1e`)
+- [x] 9. Mobile owner view shows only duration selector and Copy Availability Link button
+- [x] 10. Desktop owner view is unchanged — full grid, drag select, Generate Message all work
+- [x] 11. Copy Availability Link works correctly from the mobile view
+- [x] 12. No regressions — existing booking flow works normally after all changes
+
+---
+
+### Sprint 11 — Refactor & Code Quality ⏳ Upcoming
+**Goal:** Clean up the codebase after 10 iterative sprints. Reduce total line count, eliminate dead code, consolidate duplicated logic, and establish consistent patterns throughout — without changing any functionality.
+**Definition of done:** All existing tests still pass. Total line count is meaningfully reduced. No dead code, unused imports, or duplicated logic remains. Code patterns are consistent across frontend and backend.
+
+**Key decisions:**
+- Zero functional changes — this sprint is purely structural
+- Small quality improvements are allowed: better error messages, consistent naming, improved readability
+- All 61+ tests must remain green throughout — tests are the safety net
+- CC should report before/after line counts as a sanity check
+- Frontend and backend both in scope
+
+**Areas to audit:**
+- Dead code — unused functions, variables, imports, commented-out blocks
+- Duplicated logic — same calculation or transformation written in multiple places
+- Inconsistent error handling patterns across routes
+- Oversized files that should be split into smaller modules
+- Inconsistent naming conventions (camelCase, variable names, route naming)
+- Any leftover scaffolding or debug code from early sprints
+
+**Claude Code prompt:**
+> "Implement Sprint 11 for OpenSlot — a full codebase refactor and code quality pass. No new features. No functional changes. All existing tests must remain green throughout.
+>
+> **Step 1 — Audit**
+> Before making any changes, do a full read of the codebase and produce a short audit report covering: (a) dead code and unused imports found, (b) duplicated logic found, (c) inconsistent patterns found, (d) any files that are oversized and should be split. Report the current total line count for frontend and backend separately.
+>
+> **Step 2 — Backend cleanup**
+> - Remove all unused imports, variables, and functions
+> - Remove any commented-out code blocks that are no longer relevant
+> - Consolidate any duplicated logic into shared utility functions
+> - Standardize error handling patterns across all routes — pick one pattern and apply it consistently
+> - Improve variable and function names where they are unclear or inconsistent
+> - Split any files over ~300 lines into smaller focused modules if it improves clarity
+>
+> **Step 3 — Frontend cleanup**
+> - Remove all unused imports, variables, and components
+> - Remove any commented-out JSX or logic
+> - Consolidate any duplicated UI logic or repeated inline styles into shared components or constants
+> - Standardize prop naming and component structure
+> - Ensure design system tokens (Arc Blue, Amber, glass styles) are defined as constants rather than repeated inline hex values
+>
+> **Step 4 — Verify**
+> Run the full test suite. All tests must pass. Report final line counts for frontend and backend. Summarize what was changed and by how much the line count was reduced."
+
+### Sprint 11 — QA Checklist
+- [ ] 1. All existing tests pass after refactor (run full Jest suite)
+- [ ] 2. Total line count is reduced from baseline (CC reports before/after)
+- [ ] 3. No unused imports remain in backend
+- [ ] 4. No unused imports remain in frontend
+- [ ] 5. No commented-out code blocks remain
+- [ ] 6. Error handling is consistent across all backend routes
+- [ ] 7. Design system colors defined as constants, not repeated inline hex values
+- [ ] 8. No functional regressions — full end-to-end booking flow works
+- [ ] 9. No console errors in browser after refactor
+- [ ] 10. Code audit summary documented — what was found and what was changed
+
+---
+
 ## Environment Variables Reference
 
 ```
@@ -512,4 +632,4 @@ BASE_URL=https://your-domain.com
 ## Success Metrics (Personal)
 - You send your first real booking link to a recruiter
 - The recruiter books without asking a follow-up question
-- Zero third-party scheduling service fees paid going forward
+- Zero Calendly fees paid going forward

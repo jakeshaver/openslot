@@ -1,16 +1,12 @@
 const express = require('express');
-const { google } = require('googleapis');
-const { createOAuth2Client } = require('../config/google');
+const { createCalendarClient } = require('../helpers/calendar');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.get('/events', requireAuth, async (req, res) => {
   try {
-    const oauth2Client = createOAuth2Client();
-    oauth2Client.setCredentials(req.session.tokens);
-
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const { oauth2Client, calendar } = createCalendarClient(req.session.tokens);
 
     const now = new Date();
     const oneWeekLater = new Date(now);

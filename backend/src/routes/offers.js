@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { google } = require('googleapis');
-const { createOAuth2Client } = require('../config/google');
+const { createCalendarClient, fetchBusyEvents, hasConflict, getSlotBounds, CALENDAR_ID } = require('../helpers/calendar');
 const { requireAuth } = require('../middleware/auth');
 const store = require('../store');
 const { rateLimit } = require('../middleware/rateLimit');
@@ -73,37 +73,20 @@ router.get('/:offerId', async (req, res) => {
   // Live calendar check — filter out slots that now conflict with owner's calendar
   if (offer.tokens) {
     try {
-      const oauth2Client = createOAuth2Client();
-      oauth2Client.setCredentials(offer.tokens);
-      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      const { calendar } = createCalendarClient(offer.tokens);
 
       const availableSlots = slots.filter((s) => s.status === 'available');
       if (availableSlots.length > 0) {
-        const earliest = new Date(Math.min(...availableSlots.map((s) => new Date(s.start))));
-        const latest = new Date(Math.max(...availableSlots.map((s) => new Date(s.end))));
+        const { earliest, latest } = getSlotBounds(availableSlots);
 
-        const eventsRes = await calendar.events.list({
-          calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
-          timeMin: earliest.toISOString(),
-          timeMax: latest.toISOString(),
-          singleEvents: true,
-        });
-
-        const busyEvents = (eventsRes.data.items || []).filter(
-          (e) => e.status !== 'cancelled' && e.transparency !== 'transparent'
-        );
+        const busyEvents = await fetchBusyEvents(calendar, earliest, latest);
 
         // Remove slots that now conflict — hide entirely (don't show as unavailable)
         slots = slots.filter((s) => {
           if (s.status !== 'available') return false; // already claimed — hide
           const slotStart = new Date(s.start).getTime();
           const slotEnd = new Date(s.end).getTime();
-          const hasConflict = busyEvents.some((e) => {
-            const eStart = new Date(e.start.dateTime || e.start.date).getTime();
-            const eEnd = new Date(e.end.dateTime || e.end.date).getTime();
-            return eStart < slotEnd && eEnd > slotStart;
-          });
-          return !hasConflict;
+          return !hasConflict(slotStart, slotEnd, busyEvents);
         });
       } else {
         // All slots are claimed — filter them out
@@ -175,25 +158,13 @@ router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1
 
   // Real-time conflict check against owner's Google Calendar
   try {
-    const oauth2Client = createOAuth2Client();
-    oauth2Client.setCredentials(offer.tokens);
-
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const { oauth2Client, calendar } = createCalendarClient(offer.tokens);
 
     const slotStart = new Date(slot.start);
     const slotEnd = new Date(slot.end);
 
     // Check for conflicts in the slot's time window
-    const eventsRes = await calendar.events.list({
-      calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
-      timeMin: slotStart.toISOString(),
-      timeMax: slotEnd.toISOString(),
-      singleEvents: true,
-    });
-
-    const conflicts = (eventsRes.data.items || []).filter(
-      (e) => e.status !== 'cancelled' && e.transparency !== 'transparent'
-    );
+    const conflicts = await fetchBusyEvents(calendar, slotStart, slotEnd);
 
     if (conflicts.length > 0) {
       // This specific slot has a conflict — check if ALL slots are now stale
@@ -215,7 +186,7 @@ router.post('/:offerId/book', rateLimit({ maxAttempts: 10, windowMs: 15 * 60 * 1
 
     // No conflict — create the calendar event with Google Meet
     const event = await calendar.events.insert({
-      calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+      calendarId: CALENDAR_ID,
       conferenceDataVersion: 1,
       requestBody: {
         summary: `Meeting with ${name}`,
@@ -268,32 +239,16 @@ async function checkAllSlotsConflicted(offer, calendar) {
   if (availableSlots.length === 0) return true;
 
   // Find the earliest and latest slot times for a single query
-  const earliest = new Date(Math.min(...availableSlots.map((s) => new Date(s.start))));
-  const latest = new Date(Math.max(...availableSlots.map((s) => new Date(s.end))));
+  const { earliest, latest } = getSlotBounds(availableSlots);
 
-  const eventsRes = await calendar.events.list({
-    calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
-    timeMin: earliest.toISOString(),
-    timeMax: latest.toISOString(),
-    singleEvents: true,
-  });
-
-  const busyEvents = (eventsRes.data.items || []).filter(
-    (e) => e.status !== 'cancelled' && e.transparency !== 'transparent'
-  );
+  const busyEvents = await fetchBusyEvents(calendar, earliest, latest);
 
   // Check each available slot for conflicts
   for (const slot of availableSlots) {
     const slotStart = new Date(slot.start).getTime();
     const slotEnd = new Date(slot.end).getTime();
 
-    const hasConflict = busyEvents.some((e) => {
-      const eStart = new Date(e.start.dateTime || e.start.date).getTime();
-      const eEnd = new Date(e.end.dateTime || e.end.date).getTime();
-      return eStart < slotEnd && eEnd > slotStart;
-    });
-
-    if (!hasConflict) return false; // At least one slot is still free
+    if (!hasConflict(slotStart, slotEnd, busyEvents)) return false; // At least one slot is still free
   }
 
   return true; // All slots are conflicted

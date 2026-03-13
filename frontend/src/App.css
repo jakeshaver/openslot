@@ -43,6 +43,8 @@
   --font-body: 'DM Sans', sans-serif;
   --blur: blur(16px);
   --blur-heavy: blur(24px);
+  --error: #F43F5E;
+  --option-bg: #0f1628;
 }
 
 * {
@@ -103,6 +105,10 @@ body {
 .app-logo span {
   color: var(--blue);
   text-shadow: 0 0 20px var(--blue-glow);
+}
+
+a.app-logo {
+  text-decoration: none;
 }
 
 .app-header-right {
@@ -283,7 +289,7 @@ body {
 }
 
 .duration-select option {
-  background: #0f1628;
+  background: var(--option-bg);
   color: var(--blue);
 }
 
@@ -981,16 +987,16 @@ body {
 }
 
 .booking-form-field input.input-error {
-  border-color: #F43F5E;
+  border-color: var(--error);
 }
 
 .booking-form-field input.input-error:focus {
-  border-color: #F43F5E;
+  border-color: var(--error);
   box-shadow: 0 0 12px rgba(244, 63, 94, 0.15);
 }
 
 .field-error {
-  color: #F43F5E;
+  color: var(--error);
   font-size: 0.75rem;
   margin-top: 0.25rem;
   display: block;
@@ -1581,7 +1587,7 @@ body {
 }
 
 .settings-select option {
-  background: #0f1428;
+  background: var(--option-bg);
   color: var(--text-primary);
 }
 

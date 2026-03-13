@@ -241,7 +241,7 @@ function App() {
       <Route path="/settings" element={
         <div className="app-shell">
           <header className="app-header">
-            <a href="/" className="app-logo" style={{ textDecoration: 'none' }}>Open<span>Slot</span></a>
+            <a href="/" className="app-logo">Open<span>Slot</span></a>
             {user && (
               <div className="app-header-right">
                 <button className="btn-gear active" onClick={() => window.location.href = '/'} title="Back to calendar">
