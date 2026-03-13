@@ -10,7 +10,7 @@
 
 ## What Is OpenSlot?
 
-OpenSlot is an open-source, self-hosted scheduling web app that gives professionals a smarter alternative to Calendly — without the monthly fee. It lives on Google Cloud, connects to your Google Calendar, and does two things:
+OpenSlot is an open-source, self-hosted scheduling web app that gives professionals a smarter alternative to third-party scheduling tools — without the monthly fee. It lives on Google Cloud, connects to your Google Calendar, and does two things:
 
 1. **Slot Picker (for you):** Open the app, see your calendar, drag to select which times you want to offer, and get a copyable message with magic links embedded — ready to paste into any email or DM.
 
@@ -526,10 +526,9 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=
 GOOGLE_CALENDAR_ID=primary
+FIRESTORE_PROJECT_ID=
 SESSION_SECRET=
-FRONTEND_URL=http://localhost:3000
-PORT=3001
-NODE_ENV=development
+BASE_URL=https://your-domain.com
 ```
 
 All secrets live in `.env` locally and in Cloud Run environment variables on production. See `.env.example` in the repo for the full list. Never include actual values in planning documents.
@@ -555,4 +554,4 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 ## Success Metrics (Personal)
 - You send your first real booking link to a recruiter
 - The recruiter books without asking a follow-up question
-- Zero Calendly fees paid going forward
+- Zero third-party scheduling tool fees paid going forward
