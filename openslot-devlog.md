@@ -489,6 +489,45 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 13 — Self-Service Rescheduling ⏳ March 2026
+**Outcome:** Recipients can reschedule their booking without owner involvement. Every calendar invite includes a reschedule link. Old slot freed up, calendar event patched in place.
+
+**Deliverable 1 — Data Model Updates:**
+- `calendarEventId` now saved in `bookedBy` object when a slot is claimed
+- Enables `events.patch` on reschedule without creating a new event
+
+**Deliverable 2 — Reschedule Link in Calendar Invite:**
+- Event description includes `Reschedule: {BASE_URL}/reschedule/{offerId}` on its own line above the existing "Booked via OpenSlot" text
+- Link is clickable in both Google Calendar web and mobile
+
+**Deliverable 3 — Backend Reschedule Endpoints:**
+- `GET /api/offers/:offerId/reschedule` — returns available slots from the original offer with live calendar conflict check, current booking details, and offer metadata
+- `POST /api/offers/:offerId/reschedule` — validates new slot, runs live conflict check, patches calendar event via `events.patch` (preserves attendees, Meet link), frees old slot, claims new one
+- Both endpoints validate: offer exists, offer is claimed, meeting end time hasn't passed, new slot is in the future
+- Rate limited same as booking endpoint (10 attempts per IP per 15 min)
+
+**Deliverable 4 — Frontend Reschedule Page:**
+- New route `/reschedule/:offerId` with `Reschedule.js` component
+- Current booking displayed in Arc Blue banner at the top
+- Same layout as booking page: month calendar, time slot picker, timezone selector
+- Confirm button shows the new time: "Reschedule to [time]"
+- Success state: "Meeting rescheduled!" with green confirmation
+- Error states: expired meeting, no available slots, slot conflict
+- No name/email form — system already has that from original booking
+
+**Deliverable 5 — Tests:**
+- 10 new tests in `reschedule.test.js` (75 total)
+- Covers: GET returns slots for claimed offer, rejects unclaimed, rejects expired meeting
+- Covers: POST rejects past slots, rejects claimed slots, rejects missing fields, rejects expired meeting
+
+**Key decisions:**
+- Reschedule is a move, not an add — recipient cannot hold two slots
+- `events.patch` only updates `start` and `end` — attendees, Meet link, summary all preserved
+- No reschedule notification to owner — deferred until Gmail notification (bug #6) is fixed
+- Reschedule link expires when meeting end time passes
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
