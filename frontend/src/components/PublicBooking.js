@@ -278,6 +278,11 @@ export default function PublicBooking() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === 'offer_expired') {
+          setError('This booking link has expired. Please ask for a new one.');
+          setErrorCode('offer_expired');
+          return;
+        }
         if (data.code === 'offer_stale') {
           setError('All offered times are no longer available. Please ask for new times.');
           setErrorCode('offer_stale');
