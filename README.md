@@ -28,6 +28,16 @@ Built on Google Cloud with Node.js and React. MIT licensed.
 - **No account required** for recipients — they just pick a time & confirm
 - **Rate limiting** on the booking endpoint to prevent abuse
 - **Mobile-friendly** booking page
+- **PWA installable** — add to home screen on iOS/Android for a full-screen app experience
+
+## Architecture
+
+The codebase is organized for clarity and maintainability:
+
+- **Backend route files** (`backend/src/routes/`) handle Express endpoints for availability, offers, calendar, settings, and auth
+- **Shared helpers** (`backend/src/helpers/calendar.js`) centralize Google Calendar authentication, event filtering, conflict checking, and slot math — used by all route files
+- **Frontend components** (`frontend/src/components/`) include `WeekGrid` (owner drag-to-select), `PublicBooking` (recipient booking flow), and `Settings` (configurable working hours/days)
+- **CSS design system** in `App.css` uses custom properties (`--accent`, `--amber`, `--error`, etc.) for consistent theming
 
 ## Prerequisites
 
