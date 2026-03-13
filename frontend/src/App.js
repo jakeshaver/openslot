@@ -20,6 +20,25 @@ function GoogleIcon() {
   );
 }
 
+function ClipboardIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="2" width="6" height="4" rx="1" />
+      <rect x="4" y="4" width="16" height="18" rx="2" />
+      <line x1="9" y1="12" x2="15" y2="12" />
+      <line x1="9" y1="16" x2="13" y2="16" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 function GearIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -138,6 +157,8 @@ function App() {
   // Copy Availability Link
   const [linkCopied, setLinkCopied] = useState(false);
   const [linkSaving, setLinkSaving] = useState(false);
+  const [generatedUrl, setGeneratedUrl] = useState(null);
+  const [urlCopied, setUrlCopied] = useState(false);
 
   const copyToClipboard = useCallback(async (text) => {
     // Try modern Clipboard API first
@@ -168,92 +189,125 @@ function App() {
     }
   }, []);
 
+  // Detect mobile or PWA standalone mode
+  const isMobileOrPWA = useCallback(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isNarrow = window.innerWidth < 768;
+    return isStandalone || isNarrow;
+  }, []);
+
+  // Generate the availability offer URL (shared by desktop + mobile paths)
+  const generateAvailabilityUrl = useCallback(async () => {
+    // Calculate how many calendar days to span 7 working days
+    const workingDays = availConfig?.workingDays || [1, 2, 3, 4, 5];
+    const todayDow = new Date().getDay();
+    let calDays = 0;
+    let workingCount = 0;
+    while (workingCount < 7) {
+      if (workingDays.includes((todayDow + calDays) % 7)) workingCount++;
+      calDays++;
+    }
+
+    const params = new URLSearchParams();
+    params.set('daysAhead', String(calDays));
+    const res = await fetch(`${API_BASE}/api/availability?${params}`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch availability');
+    const data = await res.json();
+    const freshSlots = data.slots;
+
+    const windows = [];
+    const sorted = [...freshSlots].sort((a, b) => new Date(a.start) - new Date(b.start));
+    for (const slot of sorted) {
+      const last = windows[windows.length - 1];
+      if (last && new Date(last.end).getTime() >= new Date(slot.start).getTime()) {
+        if (new Date(slot.end) > new Date(last.end)) {
+          last.end = slot.end;
+        }
+      } else {
+        windows.push({ start: slot.start, end: slot.end });
+      }
+    }
+
+    if (windows.length === 0) return null;
+
+    const offer = await createOffer(windows, duration);
+    if (!offer) return null;
+
+    return `${window.location.origin}/book/${offer.id}`;
+  }, [duration, createOffer, availConfig]);
+
   const handleCopyAvailabilityLink = useCallback(async () => {
     if (linkSaving) return;
     setLinkSaving(true);
 
-    // Immediately create and select a textarea to preserve user gesture for iOS Safari
-    const textarea = document.createElement('textarea');
-    textarea.value = ' ';
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
-    try {
-      // Calculate how many calendar days to span 7 working days
-      const workingDays = availConfig?.workingDays || [1, 2, 3, 4, 5];
-      const todayDow = new Date().getDay();
-      let calDays = 0;
-      let workingCount = 0;
-      while (workingCount < 7) {
-        if (workingDays.includes((todayDow + calDays) % 7)) workingCount++;
-        calDays++;
+    if (isMobileOrPWA()) {
+      // Mobile / PWA: generate URL and reveal it in an inline panel
+      try {
+        const url = await generateAvailabilityUrl();
+        if (url) {
+          setGeneratedUrl(url);
+          setUrlCopied(false);
+        }
+      } finally {
+        setLinkSaving(false);
       }
+    } else {
+      // Desktop: auto-copy with textarea gesture preservation
+      const textarea = document.createElement('textarea');
+      textarea.value = ' ';
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
 
-      // Fetch fresh availability spanning enough calendar days for 7 working days
-      const params = new URLSearchParams();
-      params.set('daysAhead', String(calDays));
-      const res = await fetch(`${API_BASE}/api/availability?${params}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch availability');
-      const data = await res.json();
-      const freshSlots = data.slots;
+      try {
+        const url = await generateAvailabilityUrl();
+        if (!url) return;
 
-      const windows = [];
-      const sorted = [...freshSlots].sort((a, b) => new Date(a.start) - new Date(b.start));
-      for (const slot of sorted) {
-        const last = windows[windows.length - 1];
-        if (last && new Date(last.end).getTime() >= new Date(slot.start).getTime()) {
-          if (new Date(slot.end) > new Date(last.end)) {
-            last.end = slot.end;
+        let copied = false;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(url);
+            copied = true;
+          } catch {
+            // Fall through to textarea fallback
           }
-        } else {
-          windows.push({ start: slot.start, end: slot.end });
         }
-      }
 
-      if (windows.length === 0) return;
-
-      const offer = await createOffer(windows, duration);
-      if (!offer) return;
-
-      const url = `${window.location.origin}/book/${offer.id}`;
-
-      // Try modern clipboard API first (works on desktop)
-      let copied = false;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        try {
-          await navigator.clipboard.writeText(url);
-          copied = true;
-        } catch {
-          // Fall through to textarea fallback
+        if (!copied) {
+          textarea.value = url;
+          textarea.select();
+          textarea.setSelectionRange(0, url.length);
+          try {
+            document.execCommand('copy');
+            copied = true;
+          } catch {
+            // Copy failed
+          }
         }
-      }
 
-      // Fallback: update the pre-selected textarea and copy (works on iOS Safari)
-      if (!copied) {
-        textarea.value = url;
-        textarea.select();
-        textarea.setSelectionRange(0, url.length);
-        try {
-          document.execCommand('copy');
-          copied = true;
-        } catch {
-          // Copy failed
+        if (copied) {
+          setLinkCopied(true);
+          setTimeout(() => setLinkCopied(false), 2000);
         }
+      } finally {
+        document.body.removeChild(textarea);
+        setLinkSaving(false);
       }
-
-      if (copied) {
-        setLinkCopied(true);
-        setTimeout(() => setLinkCopied(false), 2000);
-      }
-    } finally {
-      document.body.removeChild(textarea);
-      setLinkSaving(false);
     }
-  }, [duration, createOffer, linkSaving, availConfig]);
+  }, [duration, createOffer, linkSaving, availConfig, isMobileOrPWA, generateAvailabilityUrl]);
+
+  // Fresh-gesture copy for the mobile/PWA inline URL panel
+  const handleUrlCopy = useCallback(async () => {
+    if (!generatedUrl) return;
+    const copied = await copyToClipboard(generatedUrl);
+    if (copied) {
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+    }
+  }, [generatedUrl, copyToClipboard]);
 
   // Send Slots — get windows from WeekGrid, create offer, show modal
   const handleSendSlots = useCallback(async () => {
@@ -390,8 +444,29 @@ function App() {
                       disabled={linkSaving}
                       onClick={handleCopyAvailabilityLink}
                     >
-                      {linkSaving ? 'Saving...' : linkCopied ? 'Copied!' : 'Copy Availability Link'}
+                      {linkSaving ? 'Generating...' : linkCopied ? 'Copied!' : 'Generate Availability Link'}
                     </button>
+
+                    {generatedUrl && (
+                      <div className="generated-url-panel">
+                        <div className="generated-url-row">
+                          <input
+                            className="generated-url-field"
+                            type="text"
+                            readOnly
+                            value={generatedUrl}
+                            onFocus={(e) => e.target.select()}
+                          />
+                          <button
+                            className={`btn-url-copy${urlCopied ? ' copied' : ''}`}
+                            onClick={handleUrlCopy}
+                            title="Copy to clipboard"
+                          >
+                            {urlCopied ? <CheckIcon /> : <ClipboardIcon />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
