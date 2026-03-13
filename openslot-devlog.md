@@ -411,6 +411,32 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 11 — Refactor & Code Quality ✅ March 2026
+**Outcome:** Zero-functional-change cleanup sprint. Duplicated backend logic extracted into shared helpers. Frontend dead code removed. Hardcoded CSS hex values replaced with design system variables.
+
+**Backend — Shared Calendar Helpers:**
+- Created `backend/src/helpers/calendar.js` with 5 extracted functions:
+  - `createCalendarClient(tokens)` — OAuth2 client setup (was duplicated 5× across routes)
+  - `filterBusyEvents(events)` — strips declined/transparent events (was duplicated 3×)
+  - `fetchBusyEvents(calendar, timeMin, timeMax)` — fetches + filters in one call
+  - `hasConflict(calendar, start, end)` — live conflict check against current calendar
+  - `getSlotBounds(slot, duration)` — computes slot start/end from offer window
+- Refactored `offers.js`, `calendar.js`, `availability.js` to use shared helpers
+- `offers.js` reduced from ~360 lines to ~300 lines
+
+**Frontend — Dead Code & CSS Variables:**
+- Removed unused `claimed` state and all references from `BookingPage.js`
+- Added CSS variables `--error: #F43F5E` and `--option-bg: #0f1628`
+- Replaced hardcoded hex values with CSS variable references
+- Moved inline `style` on logo link to CSS class
+
+**Key decisions:**
+- All 63 tests pass unchanged — confirms zero functional impact
+- Frontend build succeeds with no warnings from changed code
+- No new abstractions beyond what was directly duplicated
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
