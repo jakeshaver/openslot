@@ -183,9 +183,19 @@ function App() {
     textarea.select();
 
     try {
-      // Always fetch fresh 7-day availability from now, independent of WeekGrid view
+      // Calculate how many calendar days to span 7 working days
+      const workingDays = availConfig?.workingDays || [1, 2, 3, 4, 5];
+      const todayDow = new Date().getDay();
+      let calDays = 0;
+      let workingCount = 0;
+      while (workingCount < 7) {
+        if (workingDays.includes((todayDow + calDays) % 7)) workingCount++;
+        calDays++;
+      }
+
+      // Fetch fresh availability spanning enough calendar days for 7 working days
       const params = new URLSearchParams();
-      params.set('daysAhead', '7');
+      params.set('daysAhead', String(calDays));
       const res = await fetch(`${API_BASE}/api/availability?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch availability');
       const data = await res.json();
@@ -243,7 +253,7 @@ function App() {
       document.body.removeChild(textarea);
       setLinkSaving(false);
     }
-  }, [duration, createOffer, linkSaving]);
+  }, [duration, createOffer, linkSaving, availConfig]);
 
   // Send Slots — get windows from WeekGrid, create offer, show modal
   const handleSendSlots = useCallback(async () => {
