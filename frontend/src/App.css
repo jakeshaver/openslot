@@ -949,6 +949,51 @@ a.app-logo {
 }
 
 
+/* Inline confirm button — slides in on selected slot */
+.slot-item {
+  position: relative;
+}
+
+.btn-inline-confirm {
+  position: absolute;
+  right: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.9rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--amber);
+  color: var(--bg-deep);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateX(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease;
+  pointer-events: none;
+}
+
+.slot-item.selected-slot .btn-inline-confirm {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.btn-inline-confirm:hover {
+  background: var(--amber-bright);
+}
+
+/* Hide duration text when confirm button is visible */
+.slot-item.selected-slot .slot-item-duration {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+/* Smooth collapse/expand for slot list */
+.slot-list-items {
+  overflow: hidden;
+}
+
 .slot-empty {
   text-align: center;
   padding: 2.5rem;

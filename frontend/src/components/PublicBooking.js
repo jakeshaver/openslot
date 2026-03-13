@@ -582,18 +582,8 @@ export default function PublicBooking() {
                   <div className="slot-list-items">
                     {selectedDaySlots.filter((s) => s.status === 'available').map((slot) => {
                       const isSelected = selectedSlotIdx === slot.idx;
-                      const startTime = new Date(slot.start).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        timeZone: timezone,
-                      });
-                      const endTime = new Date(slot.end).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        timeZoneName: 'short',
-                        timeZone: timezone,
-                      });
-
+                      const startTime = new Date(slot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone });
+                      const endTime = new Date(slot.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: timezone });
                       return (
                         <div
                           key={slot.idx}
@@ -607,7 +597,6 @@ export default function PublicBooking() {
                     })}
                   </div>
 
-                  {/* Confirmation Form */}
                   {showForm && selectedSlotIdx !== null && (
                     <form className="booking-form" onSubmit={handleBook}>
                       <div className="booking-form-field">

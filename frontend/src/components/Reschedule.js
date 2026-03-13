@@ -524,18 +524,8 @@ export default function Reschedule() {
                   <div className="slot-list-items">
                     {selectedDaySlots.map((slot) => {
                       const isSelected = selectedSlotIdx === slot.idx;
-                      const startTime = new Date(slot.start).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        timeZone: timezone,
-                      });
-                      const endTime = new Date(slot.end).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        timeZoneName: 'short',
-                        timeZone: timezone,
-                      });
-
+                      const startTime = new Date(slot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone });
+                      const endTime = new Date(slot.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: timezone });
                       return (
                         <div
                           key={slot.idx}
@@ -544,21 +534,17 @@ export default function Reschedule() {
                         >
                           <span className="slot-item-time">{startTime} – {endTime}</span>
                           <span className="slot-item-duration">{offer.duration} min</span>
+                          <button
+                            className="btn-inline-confirm"
+                            onClick={(e) => { e.stopPropagation(); handleReschedule(); }}
+                            disabled={rescheduling}
+                          >
+                            {rescheduling ? 'Rescheduling...' : 'Confirm'}
+                          </button>
                         </div>
                       );
                     })}
                   </div>
-
-                  {/* Confirm Button */}
-                  {selectedSlotIdx !== null && (
-                    <button
-                      className="btn-book"
-                      disabled={rescheduling}
-                      onClick={handleReschedule}
-                    >
-                      {rescheduling ? 'Rescheduling...' : confirmLabel}
-                    </button>
-                  )}
                 </>
               )}
             </div>

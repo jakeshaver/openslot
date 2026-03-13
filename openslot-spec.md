@@ -511,17 +511,17 @@ INTEGRATION
 - Column and row separators too faint — vertical separators increased to `rgba(255,255,255,0.10)`, horizontal hour lines to `rgba(255,255,255,0.08)`
 - Time labels too faint at scroll depth — Y-axis label opacity increased from 0.5 to 0.8
 
-### Sprint 12 — QA Checklist
-- [ ] 1. Copy Availability Link booking page shows slots across all 7 working days (not just today)
-- [ ] 2. On a Friday with Mon–Fri schedule, offer covers through next Monday+
-- [ ] 3. iOS Safari "Copy Availability Link" pastes the correct `/book/:offerId` URL
-- [ ] 4. "Copied!" confirmation only shows after verified clipboard write
-- [ ] 5. Busy blocks render within correct day columns after changing working days in Settings
-- [ ] 6. Busy blocks render correctly after changing working hours in Settings
-- [ ] 7. Expired offer URL shows expired error page immediately — no slot picker visible
-- [ ] 8. Booking attempt on expired offer returns expiry error, not conflict error
-- [ ] 9. No console errors across all fix scenarios
-- [ ] 10. Full end-to-end booking flow works after all changes
+### Sprint 12 — QA Checklist ✅
+- [x] 1. Copy Availability Link booking page shows slots across all 7 working days (not just today)
+- [x] 2. On a Friday with Mon–Fri schedule, offer covers through next Monday+
+- [x] 3. iOS Safari "Copy Availability Link" pastes the correct `/book/:offerId` URL
+- [x] 4. "Copied!" confirmation only shows after verified clipboard write
+- [x] 5. Busy blocks render within correct day columns after changing working days in Settings
+- [x] 6. Busy blocks render correctly after changing working hours in Settings
+- [x] 7. Expired offer URL shows expired error page immediately — no slot picker visible
+- [x] 8. Booking attempt on expired offer returns expiry error, not conflict error
+- [x] 9. No console errors across all fix scenarios
+- [x] 10. Full end-to-end booking flow works after all changes
 
 ---
 
@@ -553,6 +553,133 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 
 ## Future Sprints (Post-v1 Candidates)
 - **Gmail Fix Sprint** — dedicated investigation of bug #6 (owner Gmail notification). Verify `gmail.send` OAuth scope on stored tokens, check Cloud Run logs, test token refresh behavior.
+- **Reschedule Notifications** — once Gmail notifications are working, extend to cover reschedule events ("Jane moved your meeting from Thursday 2pm to Friday 10am").
+
+---
+
+### Sprint 13 — Rescheduling ⏳ Upcoming
+**Goal:** Recipients can self-service reschedule a booking without owner involvement.  
+**Definition of done:** Every booking confirmation includes a reschedule link. Recipient clicks it, sees available times, picks a new one, calendar event is moved. Old slot freed up.
+
+**Key decisions:**
+- Reschedule link included in every Google Calendar invite (both offer types)
+- **Full-availability offers:** reschedule shows fresh full availability (live calendar check, working hours rules apply)
+- **Curated offers:** reschedule shows only remaining slots from the original offer (live conflict check). If none available, show "No other times from this offer are available — reach out to [owner] to find a new time."
+- Reschedule is a move, not an add — recipient cannot hold two slots
+- Old slot is freed up when reschedule completes
+- Reschedule link expires when meeting end time has passed (`meeting end time < now`)
+- No reschedule notification to owner — deferred until Gmail notification (bug #6) is fixed
+- Successful reschedule updates calendar event in place via `events.patch` — preserves attendees, Meet link, everything except start/end time
+
+**Claude Code prompt:**
+> "Implement Sprint 13 for OpenSlot — self-service rescheduling for recipients.
+>
+> **Overview:** Every booking confirmation calendar invite should include a reschedule link. When a recipient clicks it, they see available times and can move their meeting to a new slot. The original calendar event is updated in place (not deleted and recreated). The old slot is freed up.
+>
+> **Deliverable 1 — Data Model Updates**
+>
+> Add to the offer document in Firestore:
+> - `claimedBy` object on claimed offers: `{ name, email, calendarEventId, slotStart, slotEnd }` — stores the booking details needed for rescheduling
+> - `calendarEventId` is the Google Calendar event ID returned when the event is created during initial booking
+>
+> Update the booking route (`POST /api/offers/:offerId/book`) to save `claimedBy` with the event ID when a booking succeeds. The `calendarEventId` comes from the Google Calendar `events.insert` response.
+>
+> **Deliverable 2 — Reschedule Link in Calendar Invite**
+>
+> When creating the Google Calendar event during booking, include a reschedule URL in the event description. Format: `Reschedule: {BASE_URL}/reschedule/{offerId}`
+>
+> The link should be clearly visible in the event description — put it on its own line near the top.
+>
+> **Deliverable 3 — Backend Reschedule Endpoint**
+>
+> Create `GET /api/offers/:offerId/reschedule` (public, no auth required):
+> - Validate the offer exists and status is `claimed`
+> - Check that the original meeting end time has NOT passed — if it has, return `reschedule_expired` error
+> - Determine available slots based on offer type:
+>   - If offer has `windows` (curated offer): return remaining available slots from the original windows, with live calendar conflict check. Filter out past-time slots (same as regular booking page).
+>   - If offer was a full-availability offer: fetch fresh availability from the owner's calendar using stored settings (working hours, buffer time, working days, duration). Same logic as the Copy Availability Link offer creation, but returned as available slots.
+> - Return the available slots, offer duration, timezone, and the currently booked slot info
+>
+> Create `POST /api/offers/:offerId/reschedule` (public, no auth required):
+> - Validate the offer exists and status is `claimed`
+> - Check that the original meeting end time has NOT passed
+> - Validate the requested new slot is available (live conflict check)
+> - Validate the requested new slot's start time is in the future
+> - Use Google Calendar API `events.patch` to update the existing event (using stored `calendarEventId`): change `start` and `end` times. Leave attendees, Google Meet link, and everything else unchanged.
+> - Update the offer's `claimedBy.slotStart` and `claimedBy.slotEnd` in Firestore to reflect the new time
+> - Return success with the updated event details
+> - Rate limit this endpoint same as the booking endpoint (10 attempts per IP per 15-minute window)
+>
+> **Deliverable 4 — Frontend Reschedule Page**
+>
+> Create a new page at `/reschedule/:offerId`. This is a public page (no auth required), similar to the booking page but for rescheduling.
+>
+> Layout:
+> - Show the currently booked time at the top: 'Your current booking: [Day], [Date] at [Time] — [Duration]'
+> - Below that, month calendar on left, time slots on right — same layout as the existing booking page
+> - Available slots shown per the backend logic (curated = original offer slots, full-avail = fresh availability)
+> - Selected slot highlighted in Amber (same as booking page)
+> - Confirm button: 'Reschedule to [new time]' in Amber
+> - Success state: 'Meeting rescheduled to [new time]' with green confirmation, same pattern as booking confirmation
+> - If no slots available on a curated offer: 'No other times from this offer are available. Please reach out to the organizer to find a new time.'
+> - If reschedule link is expired (meeting already passed): show expired error page similar to expired offer page
+>
+> Styling: use the same booking page styles and design system. Arc Blue for structure, Amber for actions. Glassmorphism panels. This should feel like a natural extension of the existing booking page.
+>
+> **Deliverable 5 — Tests**
+>
+> Add tests for:
+> - Reschedule GET returns available slots for a claimed offer
+> - Reschedule GET returns `reschedule_expired` when meeting end time has passed
+> - Reschedule POST successfully updates the calendar event time
+> - Reschedule POST rejects past-time slots
+> - Reschedule POST rejects conflicting slots
+> - Reschedule POST on an unclaimed offer returns an error
+> - Rate limiting applies to reschedule POST endpoint
+>
+> **Important implementation notes:**
+> - The reschedule page must support timezone display the same way the booking page does — auto-detect browser timezone, searchable override dropdown
+> - `events.patch` only needs to update `start` and `end` — do not touch `attendees`, `conferenceData`, or `summary`
+> - The reschedule link does NOT require the recipient to re-enter their name and email — the system already has that from the original booking
+> - Do not send any notification emails on reschedule (Gmail notification is not yet working — this will be added in a future sprint)
+> - Reference `openslot-design-system.md` for all styling"
+
+### Sprint 13 — QA Checklist
+- [ ] 1. Booking confirmation calendar invite includes a reschedule link
+- [ ] 2. Clicking reschedule link shows available times from the original offer
+- [ ] 3. Selecting a new time moves the calendar event to the new slot
+- [ ] 4. Old slot is freed up and available for others after reschedule
+- [ ] 5. Curated offer reschedule only shows remaining slots from original offer
+- [ ] 6. Full-availability offer reschedule shows current full availability
+- [ ] 7. Curated offer with no remaining slots shows "reach out to owner" message
+- [ ] 8. Reschedule link expires after meeting end time has passed
+- [ ] 9. Google Meet link present on rescheduled event
+- [ ] 10. No console errors during reschedule flow
+
+---
+
+### Sprint 14 — Extended Hours for Curated Offers ⏳ Upcoming
+**Goal:** Owner can drag-select and offer times outside their configured working hours for curated offers. Working hours only gate the full-availability link.  
+**Definition of done:** Week grid allows selection on any hour. Full-availability link still respects working hours. Visual distinction between working and extended hours on the grid.
+
+**Key decisions:**
+- Week grid renders hours beyond configured working hours range
+- Visual distinction on grid between working hours (normal) and extended hours (dimmer or subtly marked)
+- Drag selection allowed across both working and extended hours
+- Full-availability link generation continues to respect working hours settings
+- Settings page unchanged — working hours still configurable, still apply to full-availability offers
+
+### Sprint 14 — QA Checklist
+- [ ] 1. Week grid renders hours outside configured working hours
+- [ ] 2. Extended hours are visually distinct from working hours
+- [ ] 3. Can drag-select time slots in extended hours range
+- [ ] 4. Curated offer with extended-hours slots saves correctly to Firestore
+- [ ] 5. Booking page shows extended-hours slots correctly for curated offers
+- [ ] 6. Full-availability link only includes slots within configured working hours
+- [ ] 7. Settings page working hours still function correctly
+- [ ] 8. Changing working hours updates the visual distinction on the grid
+- [ ] 9. Extended-hours slots bookable end-to-end (book → calendar event created)
+- [ ] 10. No console errors during extended-hours interaction
 
 ---
 

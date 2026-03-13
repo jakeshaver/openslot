@@ -123,6 +123,20 @@ function applyBuffer(intervals, bufferMinutes) {
 }
 
 /**
+ * Snap a timestamp forward to the next clean interval boundary for the given duration.
+ * 30-min: snap to :00 or :30
+ * 45-min: snap to :00 or :45
+ * 60-min: snap to :00
+ * 15-min: snap to :00, :15, :30, or :45 (already natural)
+ */
+function snapForward(timeMs, durationMinutes) {
+  const snapMs = (durationMinutes === 45 ? 45 : durationMinutes <= 15 ? 15 : durationMinutes) * 60 * 1000;
+  const remainder = timeMs % snapMs;
+  if (remainder === 0) return timeMs;
+  return timeMs + (snapMs - remainder);
+}
+
+/**
  * Calculate available time slots.
  *
  * @param {Array} events - Google Calendar events (raw API response items)
@@ -166,12 +180,8 @@ function calculateAvailability(events, userConfig = {}) {
     // Effective start is the later of working hours start or now
     let windowStart = dayStart < now ? now : dayStart;
 
-    // Round windowStart up to next slot boundary (e.g., next 15-min mark)
-    const roundMs = 15 * 60 * 1000;
-    const remainder = windowStart.getTime() % roundMs;
-    if (remainder > 0) {
-      windowStart = new Date(windowStart.getTime() + (roundMs - remainder));
-    }
+    // Snap to clean interval boundary based on duration
+    windowStart = new Date(snapForward(windowStart.getTime(), minSlotMinutes));
 
     // Find free gaps within [windowStart, dayEnd]
     let cursor = windowStart;
@@ -193,7 +203,9 @@ function calculateAvailability(events, userConfig = {}) {
         }
       }
 
-      cursor = block.end > cursor ? block.end : cursor;
+      // Snap cursor after busy block to next clean boundary
+      const rawEnd = block.end > cursor ? block.end : cursor;
+      cursor = new Date(snapForward(rawEnd.getTime(), minSlotMinutes));
     }
 
     // Free gap after last busy block
