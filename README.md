@@ -5,23 +5,18 @@ A self-hosted scheduling app that connects to your Google Calendar. Select avail
 Built on Google Cloud with Node.js and React. MIT licensed.
 
 ## Screenshots
-![[Screenshot 2026-03-13 at 9.27.32 AM 1.png]]
-(weekly view showing busy vs. free time. Used to generate slots for user to offer)
 
-![[Screenshot 2026-03-13 at 9.28.35 AM.png]]
-(specific slots selected by user, to be offered up for booking)
+![Week grid showing busy vs. free time](docs/screenshots/week-grid.png)
 
-![[Screenshot 2026-03-13 at 9.29.00 AM.png]]
-(offered slots auto-generate an easily copy/pasteable blurb to send to booker)
+![Specific slots selected by user to offer for booking](docs/screenshots/slot-selection.png)
 
-![[Screenshot 2026-03-13 at 9.29.13 AM.png]]
-(settings panel for user to control working days, available hours, buffer time, & default durations)
+![Auto-generated copy/pasteable message to send to booker](docs/screenshots/generated-message.png)
 
-![[Screenshot 2026-03-13 at 9.29.58 AM.png]]
-(booking page, shows calendar grid with timezone selector & available times)
+![Settings panel for working days, hours, buffer time, and durations](docs/screenshots/settings.png)
 
-![[Screenshot 2026-03-13 at 9.30.21 AM.png]]
-(booking form once a specific time is selected. includes email validation)
+![Booking page with calendar grid, timezone selector, and available times](docs/screenshots/booking-page.png)
+
+![Booking form with email validation](docs/screenshots/booking-form.png)
 ## Features
 
 - **Drag-to-select availability** on a week grid showing your real Google Calendar
