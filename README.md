@@ -1,6 +1,6 @@
 # OpenSlot
 
-A self-hosted scheduling app that connects to your Google Calendar. Select available times, share a link, and let others book directly onto your calendar — no Calendly subscription required.
+A self-hosted scheduling app that connects to your calendar (Google supported to start). Select available times, share a link, and let others book directly onto your calendar — eliminating fees for any third-party services.
 
 Built on Google Cloud with Node.js and React. MIT licensed.
 
@@ -19,13 +19,13 @@ Built on Google Cloud with Node.js and React. MIT licensed.
 ![Booking form with email validation](screenshots/booking-form.png)
 ## Features
 
-- **Drag-to-select availability** on a week grid showing your real Google Calendar
+- **Drag-to-select availability** on a week grid showing your real calendar feed
 - **Two ways to share**: copy a full-availability link, or drag specific windows and generate a personal message with per-window booking links
 - **Real-time conflict check** at booking time — no stale slots
 - **Google Meet links** added to every booking automatically
 - **Timezone support** — recipients can view times in their local timezone with a searchable dropdown
 - **Configurable** working days, hours, buffer time, and meeting duration via a settings page
-- **No account required** for recipients — they just click, pick a time, and confirm
+- **No account required** for recipients — they just pick a time & confirm
 - **Rate limiting** on the booking endpoint to prevent abuse
 - **Mobile-friendly** booking page
 
@@ -47,7 +47,6 @@ Go to [console.cloud.google.com](https://console.cloud.google.com) and create a 
 In your GCP project, go to **APIs & Services > Library** and enable:
 
 - **Google Calendar API**
-- **Gmail API**
 
 ### 3. Configure OAuth consent screen
 
@@ -121,9 +120,11 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with Google. The
 
 ## How It Works
 
-OpenSlot has two offer types. **Full Availability** is a one-click button that copies a booking URL covering all your available slots for the next 7 days. **Curated Offers** let you drag specific time windows on the week grid and generate a personal message with one booking link per window — designed to paste into an email or DM.
+OpenSlot has two offer types:
+- **Full Availability** is a one-click button that copies a booking URL covering all your available slots for the next 7 days. 
+- **Curated Offers** let you drag specific time windows on the week grid and generate a personal message with one booking link per window — designed to paste into an email or DM.
 
-Both offer types are single-use. When a recipient opens a booking link, they see available time slots with a real-time conflict check against your current calendar. They pick a time, enter their name and email, and a Google Calendar event is created for both of you with a Google Meet link attached. The owner receives a Gmail notification for each booking.
+Both offer types are single-use. When a recipient opens a booking link, they see available time slots with a real-time conflict check against your current calendar. They pick a time, enter their name and email, and a calendar event is created for both of you with a Google Meet link attached.
 
 ## License
 
