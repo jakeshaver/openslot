@@ -440,8 +440,8 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
-### Sprint 12 — QA Bug Fixes ✅ March 2026
-**Outcome:** Four bugs fixed and deployed. Copy Availability Link now works correctly across all scenarios.
+### Sprint 12 — QA Bug Fixes & UX Polish ✅ March 2026
+**Outcome:** Seven bugs and three UX issues fixed and deployed. Copy Availability Link works correctly across all platforms. Booking page filters past-time slots. Week grid scroll experience improved.
 
 **Bug Fix 1 — Copy Availability Link only showing today's slots:**
 - `handleCopyAvailabilityLink` was building the offer from the `slots` React state, which was scoped to whichever week the WeekGrid was displaying. On a Friday, the current week view only had today left as a working day.
@@ -469,6 +469,17 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 **UI Fix 1 — Copy icon on mobile URL panel:**
 - Replaced the clipboard icon in the mobile/PWA "Generate Availability Link" inline panel with an open-corner copy icon (two overlapping rectangles) for clearer visual affordance.
+
+**UX Fix 2 — Sticky day headers on week grid:**
+- Day header row (Mon, Tue, Wed, etc.) and week nav bar now stick to the top of the grid container when scrolling through time slots. Solid `--bg-deep` background prevents content from showing through.
+
+**UX Fix 3 — Column and row separators too faint:**
+- Vertical column separators increased from `rgba(255,255,255,0.04)` to `rgba(255,255,255,0.10)`.
+- Horizontal hour grid lines increased from `rgba(255,255,255,0.03)` to `rgba(255,255,255,0.08)`.
+- Time label left-axis border also increased to `0.10` for consistency.
+
+**UX Fix 4 — Time labels too faint at scroll depth:**
+- Time label opacity on the Y-axis increased from `0.5` to `0.8`, keeping Arc Blue hue per design system.
 
 **Bug Fix 7 — Past-time slots still showing as bookable:**
 - Slots whose start time had already passed were still rendered on the booking page and appeared bookable. Example: an offer with Thursday afternoon slots still showed those slots when opened on Friday.
