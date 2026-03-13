@@ -6,17 +6,17 @@ Built on Google Cloud with Node.js and React. MIT licensed.
 
 ## Screenshots
 
-![Week grid showing busy vs. free time](docs/screenshots/week-grid.png)
+![Week grid showing busy vs. free time](screenshots/week-grid.png)
 
-![Specific slots selected by user to offer for booking](docs/screenshots/slot-selection.png)
+![Specific slots selected by user to offer for booking](screenshots/slot-selection.png)
 
-![Auto-generated copy/pasteable message to send to booker](docs/screenshots/generated-message.png)
+![Auto-generated copy/pasteable message to send to booker](screenshots/generated-message.png)
 
-![Settings panel for working days, hours, buffer time, and durations](docs/screenshots/settings.png)
+![Settings panel for working days, hours, buffer time, and durations](screenshots/settings.png)
 
-![Booking page with calendar grid, timezone selector, and available times](docs/screenshots/booking-page.png)
+![Booking page with calendar grid, timezone selector, and available times](screenshots/booking-page.png)
 
-![Booking form with email validation](docs/screenshots/booking-form.png)
+![Booking form with email validation](screenshots/booking-form.png)
 ## Features
 
 - **Drag-to-select availability** on a week grid showing your real Google Calendar
