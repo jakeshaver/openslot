@@ -1163,6 +1163,16 @@ body {
 /* RESPONSIVE                 */
 /* ========================= */
 
+/* Mobile owner view — hidden on desktop */
+.mobile-owner-view {
+  display: none;
+}
+
+/* Desktop owner view — hidden on mobile */
+.desktop-owner-view {
+  display: block;
+}
+
 @media (max-width: 768px) {
   .app-header {
     padding: 1rem;
@@ -1176,12 +1186,86 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .week-grid-wrapper {
-    overflow-x: auto;
+  /* Hide desktop grid, show mobile view */
+  .desktop-owner-view {
+    display: none;
   }
 
-  .week-grid {
-    min-width: 600px;
+  .mobile-owner-view {
+    display: block;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .mobile-owner-panel {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 2rem 1.5rem;
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    box-shadow: var(--shadow-dark);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .mobile-owner-panel h2 {
+    font-family: var(--font-body);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+
+  .mobile-owner-duration {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .mobile-owner-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--blue);
+  }
+
+  .mobile-owner-duration .duration-select {
+    width: 100%;
+  }
+
+  .btn-copy-avail-mobile {
+    width: 100%;
+    padding: 1rem;
+    background: var(--amber-dim);
+    color: var(--amber);
+    border: 1px solid var(--amber-border);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: var(--shadow-amber-sm);
+  }
+
+  .btn-copy-avail-mobile:hover {
+    background: var(--amber-glow);
+    box-shadow: var(--shadow-amber-md);
+  }
+
+  .btn-copy-avail-mobile:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-copy-avail-mobile.copied {
+    background: var(--amber-glow-strong);
+    color: var(--amber-bright);
+    box-shadow: var(--shadow-amber-lg);
   }
 
   .owner-toolbar {

@@ -311,16 +311,48 @@ function App() {
                 </div>
               </div>
             ) : (
-              <WeekGrid
-                ref={weekGridRef}
-                slots={slots}
-                onWeekChange={fetchAvailability}
-                duration={duration}
-                onDurationChange={setDuration}
-                onSelectionChange={setSelectedCount}
-                workingDays={availConfig?.workingDays}
-                workingHours={availConfig?.workingHours}
-              />
+              <>
+                {/* Mobile owner view — duration selector + Copy Availability Link only */}
+                <div className="mobile-owner-view">
+                  <div className="mobile-owner-panel">
+                    <h2>Share your availability</h2>
+                    <div className="mobile-owner-duration">
+                      <label className="mobile-owner-label">Meeting duration</label>
+                      <select
+                        className="duration-select"
+                        value={duration}
+                        onChange={(e) => setDuration(Number(e.target.value))}
+                      >
+                        <option value={15}>15 min</option>
+                        <option value={30}>30 min</option>
+                        <option value={45}>45 min</option>
+                        <option value={60}>60 min</option>
+                      </select>
+                    </div>
+                    <button
+                      className={`btn-copy-avail-mobile${linkCopied ? ' copied' : ''}`}
+                      disabled={slots.length === 0 || linkSaving}
+                      onClick={handleCopyAvailabilityLink}
+                    >
+                      {linkSaving ? 'Saving...' : linkCopied ? 'Copied!' : 'Copy Availability Link'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Desktop owner view — full week grid */}
+                <div className="desktop-owner-view">
+                  <WeekGrid
+                    ref={weekGridRef}
+                    slots={slots}
+                    onWeekChange={fetchAvailability}
+                    duration={duration}
+                    onDurationChange={setDuration}
+                    onSelectionChange={setSelectedCount}
+                    workingDays={availConfig?.workingDays}
+                    workingHours={availConfig?.workingHours}
+                  />
+                </div>
+              </>
             )}
           </main>
 
