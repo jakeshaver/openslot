@@ -20,7 +20,7 @@ steps:
       - '--image'
       - 'gcr.io/$PROJECT_ID/openslot'
       - '--region'
-      - 'us-central1'
+      - 'us-east1'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
