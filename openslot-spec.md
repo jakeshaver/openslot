@@ -1,5 +1,5 @@
 # OpenSlot — Product Spec & Development Roadmap
-**Version:** 1.7  
+**Version:** 1.8  
 **Created:** March 2026  
 **Owner:** Project lead  
 **Stack:** GCP · Google Calendar API · OAuth 2.0 · Node.js · React  
@@ -33,7 +33,7 @@ OpenSlot is an open-source, self-hosted scheduling web app that gives profession
 
 **Type A — "Copy Availability Link" (Full Availability):**
 - Single button click in nav → copies one URL to clipboard
-- Single-use offer, all available slots next 7 days
+- Single-use offer, all available slots across next 7 working days
 - Recipient sees full booking page, picks any slot
 - No message text generated — just the URL
 
@@ -53,11 +53,13 @@ Both are single-use. Neither is a persistent reusable link.
 - I can sign in with my Google account
 - I can see my upcoming availability in a week grid view
 - I can drag across free time blocks to select what I want to offer
-- I can set the booking increment (30 / 45 / 60 min)
+- I can set the booking increment (15 / 30 / 45 / 60 min)
 - I can generate a copyable message with each time window as a hyperlink
 - I can click "Copy Availability Link" to instantly copy a full-availability booking URL
 - I can configure my working days, working hours, buffer time, and default meeting duration via a settings page
 - I receive a Gmail notification when someone books a slot
+- I can install the app on my iPhone home screen as a PWA
+- On mobile, I can copy my availability link without needing the full week grid
 
 ### As the recipient (recruiter, colleague, etc.):
 - I can open a link and see the specific times offered to me
@@ -67,6 +69,7 @@ Both are single-use. Neither is a persistent reusable link.
 - I receive a Google Calendar invite (with Google Meet link) after booking
 - I cannot double-book a slot already taken
 - I see a clean "no times available" message if all slots are conflicted
+- I see a clean expired message if the offer is past its 7-day window
 
 ---
 
@@ -142,14 +145,15 @@ INTEGRATION
 ---
 
 ## Bug & Edge Case Backlog
-> Known issues discovered during real-world usage. Backlog items resolved in Sprint 7.
+> Known issues discovered during real-world usage.
 
-1. ~~**Invalid email voids offer**~~ — backend fix in Sprint 7; frontend validation below
-2. ~~**Stale offer availability display**~~ — resolved in Sprint 7
+1. ~~**Invalid email voids offer**~~ — resolved Sprint 7
+2. ~~**Stale offer availability display**~~ — resolved Sprint 7
 3. **iCloud email recipients don't get calendar invite** — Google Calendar invites sent to iCloud email addresses appear in the recipient's inbox but don't attach to their Apple Calendar. Likely a CalDAV/`.ics` handshake issue between Google and Apple's calendar protocol. Needs investigation.
-4. **"Copy Availability Link" copies wrong URL on iOS Firefox** — confirmed real-world reproduction. Owner clicked "Copy Availability Link" on iOS Firefox; recipient received the base app URL (`/`) instead of a unique booking URL (`/book/:offerId`). Recipient was shown Google OAuth "Access blocked" error (Error 403: access_denied) because the owner-side app requires authentication. Root cause: offer creation API call may be failing silently on iOS Firefox, or clipboard write is succeeding but writing the wrong value. Fix: ensure the button correctly calls `/api/offers`, receives a valid offer ID, and writes the full `/book/:offerId` URL to clipboard — verified on iOS Safari and iOS Firefox.
-5. ~~**Booking form accepts malformed email addresses**~~ — frontend validation added in Sprint 8
-6. **Owner Gmail notification not firing** — Gmail API send has been silently failing across multiple sprints. Sprint 7 added error logging but notification still not received on production. Needs dedicated investigation: verify `gmail.send` OAuth scope is present on stored tokens, check Cloud Run logs for actual error, consider whether token refresh on Cloud Run is the root cause. Email notification is preferred over SMS or third-party services — keep Gmail API, fix the implementation. — confirmed real-world reproduction. Booker submitted `ztalavi@gmailcom` (missing `.`) and the form accepted it, voiding the slot. Fix: add frontend email format validation on the booking form so malformed addresses are caught before submission with an inline error message. Related to bug #1 backend fix in Sprint 7.
+4. ~~**"Copy Availability Link" copies wrong URL on iOS Firefox**~~ — resolved Sprint 8
+5. ~~**Booking form accepts malformed email addresses**~~ — resolved Sprint 8
+6. **Owner Gmail notification not firing** — Gmail API send has been silently failing across multiple sprints. Sprint 7 added error logging and fixed RFC 2822 message format but notification still not confirmed on production. Needs dedicated investigation: verify `gmail.send` OAuth scope is present on stored tokens, check Cloud Run logs for actual error, consider whether token refresh on Cloud Run is the root cause. Keep Gmail API, fix the implementation.
+7. **Week grid loses context on scroll** — three issues: (a) day header row not sticky when scrolled; (b) column separators too faint; (c) hour marker lines/labels too faint at scroll depth. All three to be addressed together.
 
 ---
 
@@ -359,7 +363,7 @@ INTEGRATION
 
 ### Sprint 7 — Bug Fixes + UX Polish ✅
 **Goal:** Fix persistent owner notification bug, resolve backlog edge cases, and improve calendar grid readability and duration selector UX.  
-**Definition of done:** Invalid bookings no longer void offers. Booking page reflects live calendar state. Duration selector includes 15-min option. Calendar grid is clearly readable in bright environments. Gmail notification remains unresolved — see bug backlog. Invalid bookings don't void offers. Booking page reflects live calendar state. Duration selector includes 15-min option. Calendar grid is clearly readable in bright environments.
+**Definition of done:** Invalid bookings no longer void offers. Booking page reflects live calendar state. Duration selector includes 15-min option. Calendar grid is clearly readable in bright environments. Gmail notification partially fixed (message format corrected, still under investigation on production).
 
 **Key decisions:**
 - Owner Gmail notification failure is a silent backend error — needs investigation and reliable error handling
@@ -368,25 +372,7 @@ INTEGRATION
 - Duration selector redesigned as dropdown (15/30/45/60 min) replacing pill buttons
 - Time label opacity and busy block hatch contrast increased for readability in bright environments
 
-**Claude Code prompt:**
-> "Implement Sprint 7 for OpenSlot. Three bug fixes and two UX improvements:
->
-> **Bug Fix 1 — Owner Gmail notification**
-> The owner is receiving zero notification emails when bookings are made — not even a Gmail notification, let alone a calendar invite. Investigate the Gmail API send in the booking route: add explicit error logging so any failure is visible in Cloud Run logs, verify the Gmail API scope (`https://www.googleapis.com/auth/gmail.send`) is correctly included in the OAuth token, and confirm the owner's email address is being correctly retrieved and passed to the send call. Fix whatever is causing the silent failure. The notification should be a fire-and-forget Gmail message to the owner with subject 'New booking: [Guest Name] — [Date] at [Time ET]' and body confirming the guest name, email, date, time, and duration.
->
-> **Bug Fix 2 — Invalid email voids offer**
-> Currently if a booker submits an invalid email and Google fails to create the calendar event, the slot is still marked as claimed in Firestore. Fix the booking route so that the slot is only marked claimed after a verified successful Google Calendar event creation. If the event creation fails for any reason, the slot remains available and the booker receives a clean error message.
->
-> **Bug Fix 3 — Stale offer availability display**
-> The booking page currently shows availability based on the offer snapshot at creation time. If the owner's calendar changes after the offer was created (new events added, existing events removed), the booking page does not reflect this. Fix the booking page data fetch to re-check live calendar state on every load. Slots that are no longer available due to calendar changes should be silently hidden — not shown as greyed out, just removed from the list entirely. This is consistent with how claimed slots are handled.
->
-> **UX Improvement 1 — Duration selector redesign**
-> Replace the current 30m/45m/60m pill button selector with a dropdown that includes 15/30/45/60 minute options. Default remains 30 min. Style the dropdown using the existing design system (Arc Blue). Update the settings page default duration stepper to also support 15 as a valid minimum.
->
-> **UX Improvement 2 — Calendar grid contrast**
-> Increase the visual contrast of two elements on the week grid: (1) time labels on the left axis — bump opacity from current level to approximately `rgba(255,255,255,0.5)` so they are clearly readable in bright room conditions; (2) busy block hatch pattern — increase the fill opacity and/or hatch line density so busy blocks are clearly distinguishable from free blocks at a glance. Reference `openslot-design-system.md` for current values and update them there too."
-
-### Sprint 7 — QA Checklist
+### Sprint 7 — QA Checklist ✅
 - [~] 1. Owner Gmail notification — NOT RESOLVED. Still not firing on production. Moved to bug backlog #6 for dedicated fix sprint.
 - [x] 2. Notification email format correct (unverifiable until send is working)
 - [x] 3. Booking with an invalid email returns an error and does not claim the slot
@@ -397,6 +383,8 @@ INTEGRATION
 - [x] 8. Time labels on week grid are clearly readable (test in a bright environment)
 - [x] 9. Busy blocks are clearly distinguishable from free blocks at a glance
 - [x] 10. No console errors and full end-to-end booking flow works after all changes
+
+---
 
 ### Sprint 8 — Bug Fixes from Real-World Usage ✅
 **Goal:** Fix the two bugs surfaced from the first real external booking attempt.  
@@ -411,7 +399,7 @@ INTEGRATION
 - Bug #4 — "Copy Availability Link" copies wrong URL on iOS Firefox
 - Bug #5 — Booking form accepts malformed email addresses
 
-### Sprint 8 — QA Checklist
+### Sprint 8 — QA Checklist ✅
 - [x] 1. "Copy Availability Link" on iOS Firefox copies a valid `/book/:offerId` URL
 - [x] 2. "Copy Availability Link" on iOS Safari copies a valid `/book/:offerId` URL
 - [x] 3. Opening the copied URL on a fresh browser session shows the correct booking page
@@ -439,50 +427,23 @@ INTEGRATION
 - No `CONTRIBUTING.md` required for initial release
 - No hardcoded owner-specific values (email, project ID, GCP URL) anywhere in source code
 
-**Claude Code prompt:**
-> "Implement Sprint 9 for OpenSlot — prepare the repo for public open source release.
->
-> **Deliverable 1 — README.md**
-> Write a complete `README.md` at the repo root. Audience: a technically capable person who has never used GCP before. Tone: clear, direct, no fluff.
->
-> The README must cover these sections in order:
-> 1. **What is OpenSlot** — 2-3 sentence description of what the app does and why it exists
-> 2. **Screenshots** — 4 placeholder blocks: (a) week grid / slot picker, (b) generated message with booking links, (c) recipient booking page desktop, (d) recipient booking page mobile. Format: `<!-- SCREENSHOT: week-grid.png — Owner view showing the drag-to-select week grid -->`
-> 3. **Features** — short bullet list of what the app does
-> 4. **Prerequisites** — Google account, GCP project with billing enabled, Node.js 22, repo cloned locally
-> 5. **GCP Setup** — step by step: enable Google Calendar API and Gmail API, configure OAuth 2.0 credentials, add test users. Written for someone who has never opened GCP Console before.
-> 6. **Environment Variables** — table of every variable in `.env.example` with plain-English description and where to find each value
-> 7. **Local Development** — exact commands to install deps, create `.env`, and run both servers. Include localhost URLs.
-> 8. **How It Works** — 4-5 sentences explaining the two offer types so a new contributor understands the core UX
->
-> Do not include a Cloud Run deploy section.
->
-> **Deliverable 2 — LICENSE**
-> Create a `LICENSE` file at repo root with standard MIT license text. Use the repo owner's GitHub username in the copyright line.
->
-> **Deliverable 3 — .env.example audit**
-> Review `.env.example` against all environment variables actually used in the codebase. Add any missing variables with placeholder values. Remove any that no longer exist.
->
-> **Deliverable 4 — Hardcoded value audit**
-> Search the codebase for hardcoded owner-specific values: email addresses, GCP project IDs, Cloud Run URLs. Move to environment variables if found. Report what was changed."
-
-### Sprint 9 — QA Checklist
-- [ ] 1. README present at repo root and renders correctly on GitHub
-- [ ] 2. What is OpenSlot section clearly explains the app in 2-3 sentences
-- [ ] 3. All 4 screenshot placeholders present with descriptive labels
-- [ ] 4. GCP setup steps are accurate — Calendar API, Gmail API, OAuth, test users
-- [ ] 5. Environment variables table covers every variable with plain-English descriptions
-- [ ] 6. Local dev instructions work on a clean clone
-- [ ] 7. `LICENSE` file present at repo root with MIT license text
-- [ ] 8. `.env.example` contains all required variables with no real values
-- [ ] 9. No hardcoded owner-specific values remain in source code
-- [ ] 10. Repo set to public on GitHub after all files committed
+### Sprint 9 — QA Checklist ✅
+- [x] 1. README present at repo root and renders correctly on GitHub
+- [x] 2. What is OpenSlot section clearly explains the app in 2-3 sentences
+- [x] 3. All 4 screenshot placeholders present with descriptive labels
+- [x] 4. GCP setup steps are accurate — Calendar API, Gmail API, OAuth, test users
+- [x] 5. Environment variables table covers every variable with plain-English descriptions
+- [x] 6. Local dev instructions work on a clean clone
+- [x] 7. `LICENSE` file present at repo root with MIT license text
+- [x] 8. `.env.example` contains all required variables with no real values
+- [x] 9. No hardcoded owner-specific values remain in source code
+- [x] 10. Repo set to public on GitHub after all files committed
 
 ---
 
 ### Sprint 10 — PWA ✅
-**Goal:** Make OpenSlot installable on iPhone home screen. Opens full-screen with no browser chrome, feels native. Owner-side improvement only — recipients are unaffected.
-**Definition of done:** OpenSlot can be added to iPhone home screen from Safari. Opens full-screen with no address bar. Custom calendar-slot icon displays correctly. App name shows as "OpenSlot" on home screen.
+**Goal:** Make OpenSlot installable on iPhone home screen. Opens full-screen with no browser chrome, feels native. Owner-side improvement only — recipients are unaffected.  
+**Definition of done:** OpenSlot can be added to iPhone home screen from Safari. Opens full-screen with no address bar. Custom calendar-slot icon displays correctly. App name shows as "OpenSlot" on home screen. Mobile owner view simplified to Copy Availability Link + duration selector only.
 
 **Key decisions:**
 - No offline support needed — app requires live calendar data, service worker is minimal (install criteria only)
@@ -490,113 +451,71 @@ INTEGRATION
 - Display mode: `standalone` — full screen, no browser chrome
 - Theme color: `#0a0f1e` to match app background
 - Icons generated at all required Apple sizes: 192×192, 512×512, 180×180 (apple-touch-icon)
-- `<meta name="apple-mobile-web-app-capable">` and related Apple-specific meta tags required for iOS PWA behavior
+- Mobile owner view (< 768px): week grid hidden, replaced with duration selector + full-width Copy Availability Link button
+- Nav bar on mobile hides redundant Copy Availability Link button and username — only gear icon and Sign Out remain
+- PWA installed via Safari only — Firefox iOS doesn't support PWA install APIs (Apple restriction)
 
-**Claude Code prompt:**
-> "Implement Sprint 10 for OpenSlot — add PWA support, fix the mobile owner experience, and correct the app icon.
->
-> **Deliverable 1 — Web App Manifest**
-> Create `public/manifest.json` with the following:
-> - `name`: OpenSlot
-> - `short_name`: OpenSlot
-> - `display`: standalone
-> - `background_color`: #0a0f1e
-> - `theme_color`: #0a0f1e
-> - `start_url`: /
-> - `icons`: entries for 192×192 and 512×512 PNG icons (paths to be created in Deliverable 2)
-> Link the manifest in `public/index.html` with `<link rel="manifest" href="/manifest.json">`.
->
-> **Deliverable 2 — App Icons**
-> Generate PWA icons programmatically (using Canvas API or a Node script) at the following sizes: 192×192, 512×512, and 180×180 (Apple touch icon). Icon design: dark navy square (`#0a0f1e` background, rounded corners for the 180px Apple touch icon), a minimal calendar grid outline in `rgba(255,255,255,0.15)`, and one highlighted cell filled with amber `#F59E0B` in the bottom-center of the grid. Save as PNG files in `public/icons/`. This is the required icon design — do not substitute a lettermark or wordmark.
-> Add `<link rel="apple-touch-icon" href="/icons/icon-180.png">` to `public/index.html`.
->
-> **Deliverable 3 — Service Worker**
-> Create a minimal service worker at `public/sw.js` that satisfies PWA installability criteria. No caching or offline support needed — just register and activate. Register it in `public/index.html` with a standard inline script.
->
-> **Deliverable 4 — iOS Meta Tags**
-> Add the following to `public/index.html`:
-> - `<meta name="apple-mobile-web-app-capable" content="yes">`
-> - `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
-> - `<meta name="apple-mobile-web-app-title" content="OpenSlot">`
->
-> **Deliverable 5 — Mobile owner experience**
-> The current week grid is desktop-only and breaks on narrow mobile screens. Implement a responsive layout switch for the owner/slot-picker view:
-> - On mobile (screen width < 768px): hide the week grid entirely and show a simplified mobile view with two elements only: (1) the duration selector dropdown (15/30/45/60 min, existing component, Arc Blue) and (2) a large "Copy Availability Link" button (Amber, full width, same behavior as the existing nav button). No grid, no Generate Message, no drag interaction.
-> - On desktop (screen width ≥ 768px): show the existing full grid experience exactly as-is, unchanged.
-> The mobile view should use the existing design system — dark glassmorphism panel, Arc Blue duration selector, Amber CTA button with glow. Keep it minimal: duration label, dropdown, and the copy button. Nothing else.
->
-> After implementing, verify the app passes Chrome's PWA installability audit (Lighthouse) and that Safari on iOS shows the 'Add to Home Screen' option correctly."
-
-### Sprint 10 — QA Checklist
+### Sprint 10 — QA Checklist ✅
 - [x] 1. `manifest.json` present in public folder and linked in index.html
 - [x] 2. Service worker registered with no console errors
 - [x] 3. Lighthouse PWA audit passes installability criteria
 - [x] 4. Safari on iPhone shows "Add to Home Screen" option when visiting the production URL
 - [x] 5. App opens full-screen with no address bar after adding to home screen
-- [x] 6. Home screen icon shows the calendar grid with amber cell design (not a lettermark)
-- [x] 7. App name displays as "OpenSlot" on the home screen
+- [x] 6. Home screen icon shows the calendar grid with amber cell design
+- [x] 7. App name displays as "OpenSlot" on the home screen (not the full Cloud Run URL)
 - [x] 8. Status bar color matches the app background (`#0a0f1e`)
-- [x] 9. Mobile owner view shows only duration selector and Copy Availability Link button
-- [x] 10. Desktop owner view is unchanged — full grid, drag select, Generate Message all work
-- [x] 11. Copy Availability Link works correctly from the mobile view
-- [x] 12. No regressions — existing booking flow works normally after all changes
+- [x] 9. App loads correctly when launched from home screen (auth flow works)
+- [x] 10. No regressions — existing booking flow works normally after PWA changes
 
 ---
 
-### Sprint 11 — Refactor & Code Quality ⏳ Upcoming
-**Goal:** Clean up the codebase after 10 iterative sprints. Reduce total line count, eliminate dead code, consolidate duplicated logic, and establish consistent patterns throughout — without changing any functionality.
-**Definition of done:** All existing tests still pass. Total line count is meaningfully reduced. No dead code, unused imports, or duplicated logic remains. Code patterns are consistent across frontend and backend.
+### Sprint 11 — Refactor & Code Quality ✅
+**Goal:** Zero-functional-change cleanup sprint. Duplicated backend logic extracted into shared helpers. Frontend dead code removed. Hardcoded CSS hex values replaced with design system variables.  
+**Definition of done:** All duplicated calendar helper logic extracted. Dead code removed. CSS variables used consistently. All existing tests pass unchanged.
 
 **Key decisions:**
-- Zero functional changes — this sprint is purely structural
-- Small quality improvements are allowed: better error messages, consistent naming, improved readability
-- All 61+ tests must remain green throughout — tests are the safety net
-- CC should report before/after line counts as a sanity check
-- Frontend and backend both in scope
+- Created `backend/src/helpers/calendar.js` with 5 extracted functions (was duplicated across 3–5 files)
+- `offers.js` reduced from ~360 lines to ~300 lines
+- Removed unused `claimed` state from `BookingPage.js`
+- Added CSS variables `--error` and `--option-bg`, replaced hardcoded hex values
+- All 63 tests pass unchanged — confirms zero functional impact
 
-**Areas to audit:**
-- Dead code — unused functions, variables, imports, commented-out blocks
-- Duplicated logic — same calculation or transformation written in multiple places
-- Inconsistent error handling patterns across routes
-- Oversized files that should be split into smaller modules
-- Inconsistent naming conventions (camelCase, variable names, route naming)
-- Any leftover scaffolding or debug code from early sprints
+### Sprint 11 — QA Checklist ✅
+- [x] 1. All 63 existing tests pass with no changes
+- [x] 2. Frontend build succeeds with no warnings from changed code
+- [x] 3. Calendar helper functions work correctly in offers route
+- [x] 4. Calendar helper functions work correctly in availability route
+- [x] 5. Calendar helper functions work correctly in calendar route
+- [x] 6. No duplicated OAuth client setup code remains
+- [x] 7. No duplicated busy event filtering code remains
+- [x] 8. CSS variables used consistently — no hardcoded hex values in changed files
+- [x] 9. Dead code removed from BookingPage.js
+- [x] 10. Full end-to-end booking flow works after refactor
 
-**Claude Code prompt:**
-> "Implement Sprint 11 for OpenSlot — a full codebase refactor and code quality pass. No new features. No functional changes. All existing tests must remain green throughout.
->
-> **Step 1 — Audit**
-> Before making any changes, do a full read of the codebase and produce a short audit report covering: (a) dead code and unused imports found, (b) duplicated logic found, (c) inconsistent patterns found, (d) any files that are oversized and should be split. Report the current total line count for frontend and backend separately.
->
-> **Step 2 — Backend cleanup**
-> - Remove all unused imports, variables, and functions
-> - Remove any commented-out code blocks that are no longer relevant
-> - Consolidate any duplicated logic into shared utility functions
-> - Standardize error handling patterns across all routes — pick one pattern and apply it consistently
-> - Improve variable and function names where they are unclear or inconsistent
-> - Split any files over ~300 lines into smaller focused modules if it improves clarity
->
-> **Step 3 — Frontend cleanup**
-> - Remove all unused imports, variables, and components
-> - Remove any commented-out JSX or logic
-> - Consolidate any duplicated UI logic or repeated inline styles into shared components or constants
-> - Standardize prop naming and component structure
-> - Ensure design system tokens (Arc Blue, Amber, glass styles) are defined as constants rather than repeated inline hex values
->
-> **Step 4 — Verify**
-> Run the full test suite. All tests must pass. Report final line counts for frontend and backend. Summarize what was changed and by how much the line count was reduced."
+---
 
-### Sprint 11 — QA Checklist
-- [ ] 1. All existing tests pass after refactor (run full Jest suite)
-- [ ] 2. Total line count is reduced from baseline (CC reports before/after)
-- [ ] 3. No unused imports remain in backend
-- [ ] 4. No unused imports remain in frontend
-- [ ] 5. No commented-out code blocks remain
-- [ ] 6. Error handling is consistent across all backend routes
-- [ ] 7. Design system colors defined as constants, not repeated inline hex values
-- [ ] 8. No functional regressions — full end-to-end booking flow works
-- [ ] 9. No console errors in browser after refactor
-- [ ] 10. Code audit summary documented — what was found and what was changed
+### Sprint 12 — QA Bug Fixes ✅
+**Goal:** Fix bugs discovered during the comprehensive post-Sprint 11 QA pass.  
+**Definition of done:** Copy Availability Link covers full 7 working days. iOS Safari clipboard write works reliably. Busy blocks render correctly with custom working days. Expired offers show proper error page.
+
+**Bugs fixed:**
+- Copy Availability Link only showing today's slots — now fetches fresh availability from API independent of WeekGrid view
+- Copy Availability Link scoped to 7 calendar days instead of 7 working days — now calculates calendar days needed to cover 7 working days based on user's schedule
+- iOS Safari clipboard silently failing — hidden textarea created and focused immediately on click to preserve gesture context; async API result written after
+- Busy block rendering with custom working days — removed hardcoded CSS nth-child rule, first-row margin applied dynamically via inline styles
+- Expired offer showing slots instead of error page — added `offer_expired` handler to booking submission error flow
+
+### Sprint 12 — QA Checklist
+- [ ] 1. Copy Availability Link booking page shows slots across all 7 working days (not just today)
+- [ ] 2. On a Friday with Mon–Fri schedule, offer covers through next Monday+
+- [ ] 3. iOS Safari "Copy Availability Link" pastes the correct `/book/:offerId` URL
+- [ ] 4. "Copied!" confirmation only shows after verified clipboard write
+- [ ] 5. Busy blocks render within correct day columns after changing working days in Settings
+- [ ] 6. Busy blocks render correctly after changing working hours in Settings
+- [ ] 7. Expired offer URL shows expired error page immediately — no slot picker visible
+- [ ] 8. Booking attempt on expired offer returns expiry error, not conflict error
+- [ ] 9. No console errors across all fix scenarios
+- [ ] 10. Full end-to-end booking flow works after all changes
 
 ---
 
@@ -612,6 +531,8 @@ SESSION_SECRET=
 BASE_URL=https://your-domain.com
 ```
 
+All secrets live in `.env` locally and in Cloud Run environment variables on production. See `.env.example` in the repo for the full list. Never include actual values in planning documents.
+
 ---
 
 ## Out of Scope (v1)
@@ -625,7 +546,8 @@ BASE_URL=https://your-domain.com
 - Outlook / iCloud calendar support (ideal for community contributions)
 
 ## Future Sprints (Post-v1 Candidates)
-- **PWA (Progressive Web App)** — make OpenSlot installable on iPhone home screen, full-screen with no browser chrome, feels native. Reuses existing web app entirely. Owner-side UX improvement — lets you copy availability links from your phone without opening a browser. Recipients unaffected.
+- **Gmail Fix Sprint** — dedicated investigation of bug #6 (owner Gmail notification). Verify `gmail.send` OAuth scope on stored tokens, check Cloud Run logs, test token refresh behavior.
+- **Grid Polish Sprint** — bug #7 (week grid loses context on scroll). Sticky day header row, stronger column separators, hour marker contrast at scroll depth.
 
 ---
 
