@@ -153,7 +153,7 @@ INTEGRATION
 4. ~~**"Copy Availability Link" copies wrong URL on iOS Firefox**~~ — resolved Sprint 8
 5. ~~**Booking form accepts malformed email addresses**~~ — resolved Sprint 8
 6. **Owner Gmail notification not firing** — Gmail API send has been silently failing across multiple sprints. Sprint 7 added error logging and fixed RFC 2822 message format but notification still not confirmed on production. Needs dedicated investigation: verify `gmail.send` OAuth scope is present on stored tokens, check Cloud Run logs for actual error, consider whether token refresh on Cloud Run is the root cause. Keep Gmail API, fix the implementation.
-7. **Week grid loses context on scroll** — three issues: (a) day header row not sticky when scrolled; (b) column separators too faint; (c) hour marker lines/labels too faint at scroll depth. All three to be addressed together.
+7. ~~**Week grid loses context on scroll**~~ — resolved Sprint 12 (sticky headers, stronger separators, time label contrast)
 
 ---
 
@@ -504,6 +504,12 @@ INTEGRATION
 - iOS Safari clipboard silently failing — hidden textarea created and focused immediately on click to preserve gesture context; async API result written after
 - Busy block rendering with custom working days — removed hardcoded CSS nth-child rule, first-row margin applied dynamically via inline styles
 - Expired offer showing slots instead of error page — added `offer_expired` handler to booking submission error flow
+- iOS PWA clipboard write silently fails — split behavior by platform: desktop keeps auto-copy, mobile/PWA shows "Generate Availability Link" button that reveals inline glassmorphism panel with read-only URL field and amber copy icon; copy happens from fresh user gesture
+- Copy icon on mobile URL panel — replaced clipboard icon with open-corner copy icon (two overlapping rectangles) for clearer affordance
+- Past-time slots still showing as bookable — GET `/api/offers/:offerId` now filters out slots whose start time is before `now` (UTC); if zero remain, returns 410 with `offer_stale`; POST booking route checks slot time before conflict check, returns `slot_expired` if past
+- Sticky day headers on week grid — day header row and week nav bar stick to top of grid container on scroll
+- Column and row separators too faint — vertical separators increased to `rgba(255,255,255,0.10)`, horizontal hour lines to `rgba(255,255,255,0.08)`
+- Time labels too faint at scroll depth — Y-axis label opacity increased from 0.5 to 0.8
 
 ### Sprint 12 — QA Checklist
 - [ ] 1. Copy Availability Link booking page shows slots across all 7 working days (not just today)
@@ -547,7 +553,6 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 
 ## Future Sprints (Post-v1 Candidates)
 - **Gmail Fix Sprint** — dedicated investigation of bug #6 (owner Gmail notification). Verify `gmail.send` OAuth scope on stored tokens, check Cloud Run logs, test token refresh behavior.
-- **Grid Polish Sprint** — bug #7 (week grid loses context on scroll). Sticky day header row, stronger column separators, hour marker contrast at scroll depth.
 
 ---
 
