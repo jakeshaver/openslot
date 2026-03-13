@@ -467,6 +467,9 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 - In standalone PWA mode (or any mobile browser), the clipboard write strategy from Bug Fix 3 still silently fails because iOS invalidates the gesture context after the async offer creation API call, even with a pre-created textarea.
 - Fix: split behavior by platform. Desktop (>= 768px, not standalone) keeps the auto-copy approach. Mobile/PWA shows a "Generate Availability Link" button that reveals an inline glassmorphism panel with a read-only URL field and an amber clipboard icon. The icon triggers a fresh user gesture copy — no async between tap and clipboard write. Icon swaps to a checkmark for 2 seconds on success. Tapping the button again generates a new offer and replaces the URL.
 
+**UI Fix 1 — Copy icon on mobile URL panel:**
+- Replaced the clipboard icon in the mobile/PWA "Generate Availability Link" inline panel with an open-corner copy icon (two overlapping rectangles) for clearer visual affordance.
+
 **Bug Fix 7 — Past-time slots still showing as bookable:**
 - Slots whose start time had already passed were still rendered on the booking page and appeared bookable. Example: an offer with Thursday afternoon slots still showed those slots when opened on Friday.
 - Fix (frontend/backend): GET `/api/offers/:offerId` now filters out any slot whose start time is before `now` (UTC) before returning. If zero slots remain after filtering, returns 410 with `offer_stale` code — shows the expired/stale error page, not an empty slot picker.
