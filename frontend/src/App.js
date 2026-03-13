@@ -20,13 +20,11 @@ function GoogleIcon() {
   );
 }
 
-function ClipboardIcon() {
+function CopyIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="2" width="6" height="4" rx="1" />
-      <rect x="4" y="4" width="16" height="18" rx="2" />
-      <line x1="9" y1="12" x2="15" y2="12" />
-      <line x1="9" y1="16" x2="13" y2="16" />
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+      <path d="M13 3H5C3.9 3 3 3.9 3 5V13" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
+      <rect x="6.5" y="6.5" width="11" height="11" rx="2" stroke="#F59E0B" strokeWidth="1.5"/>
     </svg>
   );
 }
@@ -462,7 +460,7 @@ function App() {
                             onClick={handleUrlCopy}
                             title="Copy to clipboard"
                           >
-                            {urlCopied ? <CheckIcon /> : <ClipboardIcon />}
+                            {urlCopied ? <CheckIcon /> : <CopyIcon />}
                           </button>
                         </div>
                       </div>
