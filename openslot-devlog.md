@@ -489,7 +489,7 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
-### Sprint 13 — Self-Service Rescheduling ⏳ March 2026
+### Sprint 13 — Self-Service Rescheduling ✅ March 2026
 **Outcome:** Recipients can reschedule their booking without owner involvement. Every calendar invite includes a reschedule link. Old slot freed up, calendar event patched in place.
 
 **Deliverable 1 — Data Model Updates:**
@@ -525,6 +525,11 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 - `events.patch` only updates `start` and `end` — attendees, Meet link, summary all preserved
 - No reschedule notification to owner — deferred until Gmail notification (bug #6) is fixed
 - Reschedule link expires when meeting end time passes
+
+**UX Fixes (post-delivery):**
+1. **Slot snapping** — Buffer time was creating awkward :15/:45 start times on 30-min slots. Added `snapForward()` to the availability engine that snaps slot boundaries to clean intervals matching the duration (30-min → :00/:30, 45-min → :00/:45, 60-min → :00). Applied to both window start and post-busy-block cursor.
+2. **Inline confirm on reschedule page** — Replaced separate confirm button with an inline "Confirm" button that slides into the selected slot row. Full slot list stays visible; selecting a different slot moves the confirm button. Tested via interactive HTML mockup (Option A: bar below list vs Option B: inline on row — Option B chosen).
+3. **Booking page consistency** — Same always-visible slot list with amber highlight on selected slot. Booking form appears below the list (not collapsed).
 
 ---
 
