@@ -139,6 +139,35 @@ function App() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [linkSaving, setLinkSaving] = useState(false);
 
+  const copyToClipboard = useCallback(async (text) => {
+    // Try modern Clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Fall through to fallback
+      }
+    }
+    // Fallback for iOS Firefox and older browsers
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+    try {
+      document.execCommand('copy');
+      return true;
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }, []);
+
   const handleCopyAvailabilityLink = useCallback(async () => {
     if (linkSaving) return;
     setLinkSaving(true);
@@ -157,16 +186,18 @@ function App() {
       }
 
       const offer = await createOffer(windows, duration);
-      if (offer) {
-        const url = `${window.location.origin}/book/${offer.id}`;
-        await navigator.clipboard.writeText(url);
+      if (!offer) return;
+
+      const url = `${window.location.origin}/book/${offer.id}`;
+      const copied = await copyToClipboard(url);
+      if (copied) {
         setLinkCopied(true);
         setTimeout(() => setLinkCopied(false), 2000);
       }
     } finally {
       setLinkSaving(false);
     }
-  }, [slots, duration, createOffer, linkSaving]);
+  }, [slots, duration, createOffer, linkSaving, copyToClipboard]);
 
   // Send Slots — get windows from WeekGrid, create offer, show modal
   const handleSendSlots = useCallback(async () => {
@@ -185,9 +216,11 @@ function App() {
 
   const handleModalCopy = async () => {
     const msg = generateMessage(offerData);
-    await navigator.clipboard.writeText(msg);
-    setModalCopied(true);
-    setTimeout(() => setModalCopied(false), 2000);
+    const copied = await copyToClipboard(msg);
+    if (copied) {
+      setModalCopied(true);
+      setTimeout(() => setModalCopied(false), 2000);
+    }
   };
 
   if (loading) {
