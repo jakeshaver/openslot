@@ -437,6 +437,31 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Bug Fixes — March 13, 2026
+**Outcome:** Four bugs fixed and deployed. Copy Availability Link now works correctly across all scenarios.
+
+**Bug Fix 1 — Copy Availability Link only showing today's slots:**
+- `handleCopyAvailabilityLink` was building the offer from the `slots` React state, which was scoped to whichever week the WeekGrid was displaying. On a Friday, the current week view only had today left as a working day.
+- Fix: the function now fetches fresh availability directly from the API, independent of the WeekGrid view.
+
+**Bug Fix 2 — Copy Availability Link spans 7 working days (not 7 calendar days):**
+- Previously passed `daysAhead=7` (calendar days). On a Friday with Mon–Fri schedule, that only reached Wednesday — missing 2 working days.
+- Fix: calculates how many calendar days are needed to cover 7 working days based on the user's configured schedule. On Friday with Mon–Fri, fetches 11 calendar days (Fri + next Mon–Fri + following Mon).
+
+**Bug Fix 3 — iOS Safari clipboard silently failing:**
+- Clipboard write happened after async API calls, breaking iOS's requirement that clipboard access occurs within a synchronous user gesture handler.
+- Fix: hidden textarea is created, focused, and selected immediately on click (preserving gesture context). After async work completes, the textarea is updated and `execCommand('copy')` is called. Modern `navigator.clipboard` API tried first for desktop browsers.
+
+**Bug Fix 4 — Busy block rendering with custom working days:**
+- CSS rule `.week-grid > :nth-child(n+7):nth-child(-n+12)` hardcoded 6 columns (1 time label + 5 Mon–Fri days). Changing working days in Settings caused grid cells to misalign across columns.
+- Fix: removed hardcoded CSS rule, first-row margin applied dynamically via inline styles in WeekGrid.js.
+
+**Bug Fix 5 — Expired offer not handled in booking form:**
+- If an offer expired between page load and booking submission, the POST returned `offer_expired` but the frontend didn't check for that code, falling through to a generic error.
+- Fix: added `offer_expired` handler to the booking submission error flow, showing the proper expired error page.
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
