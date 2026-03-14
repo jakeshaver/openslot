@@ -25,6 +25,7 @@ Built on Google Cloud with Node.js and React. MIT licensed.
 - **Google Meet links** added to every booking automatically
 - **Timezone support** — recipients can view times in their local timezone with a searchable dropdown
 - **Configurable** working days, hours, buffer time, and meeting duration via a settings page
+- **Self-service rescheduling** — every calendar invite includes a reschedule link; recipients can move their booking without bothering the host
 - **No account required** for recipients — they just pick a time & confirm
 - **Rate limiting** on the booking endpoint to prevent abuse
 - **Mobile-friendly** booking page
