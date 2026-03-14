@@ -1,7 +1,7 @@
 const express = require('express');
 const { createCalendarClient } = require('../helpers/calendar');
 const { requireAuth } = require('../middleware/auth');
-const { calculateAvailability, DEFAULT_CONFIG } = require('../availability');
+const { calculateAvailability, extractBusyIntervals, mergeIntervals, DEFAULT_CONFIG } = require('../availability');
 const store = require('../store');
 
 const router = express.Router();
@@ -65,13 +65,22 @@ router.get('/', requireAuth, async (req, res) => {
       req.session.tokens = oauth2Client.credentials;
     }
 
+    const events = response.data.items || [];
+
     // PRIVACY: Only free slots are returned — never event details
-    const slots = calculateAvailability(response.data.items || [], {
+    const slots = calculateAvailability(events, {
       ...config,
       _startDate: startDate, // pass custom start to engine
     });
 
-    res.json({ slots, config: { ...config } });
+    // Also return merged busy intervals (start/end only) for extended-hours grid rendering
+    const rawBusy = extractBusyIntervals(events, config);
+    const busyIntervals = mergeIntervals(rawBusy).map((b) => ({
+      start: b.start.toISOString(),
+      end: b.end.toISOString(),
+    }));
+
+    res.json({ slots, busyIntervals, config: { ...config } });
   } catch (err) {
     console.error('Availability fetch error:', err.message);
     if (err.code === 401) {

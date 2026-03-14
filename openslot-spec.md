@@ -576,17 +576,17 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 2. **Inline confirm on reschedule page** — Replaced separate confirm button with an inline "Confirm" button that slides into the selected slot row. Full slot list stays visible; selecting a different slot moves the confirm button. Tested via interactive HTML mockup (Option A: bar below list vs Option B: inline on row — Option B chosen).
 3. **Booking page consistency** — Same always-visible slot list with amber highlight on selected slot. Booking form appears below the list (not collapsed).
 
-### Sprint 13 — QA Checklist
-- [ ] 1. Booking confirmation calendar invite includes a reschedule link
-- [ ] 2. Clicking reschedule link shows available times from the original offer
-- [ ] 3. Selecting a new time moves the calendar event to the new slot
-- [ ] 4. Old slot is freed up and available for others after reschedule
-- [ ] 5. Curated offer reschedule only shows remaining slots from original offer
-- [ ] 6. Full-availability offer reschedule shows current full availability
-- [ ] 7. Curated offer with no remaining slots shows "reach out to owner" message
-- [ ] 8. Reschedule link expires after meeting end time has passed
-- [ ] 9. Google Meet link present on rescheduled event
-- [ ] 10. No console errors during reschedule flow
+### Sprint 13 — QA Checklist ✅
+- [x] 1. Booking confirmation calendar invite includes a reschedule link
+- [x] 2. Clicking reschedule link shows available times from the original offer
+- [x] 3. Selecting a new time moves the calendar event to the new slot
+- [x] 4. Old slot is freed up and available for others after reschedule
+- [x] 5. Curated offer reschedule only shows remaining slots from original offer
+- [x] 6. Full-availability offer reschedule shows current full availability
+- [x] 7. Curated offer with no remaining slots shows "reach out to owner" message
+- [x] 8. Reschedule link expires after meeting end time has passed
+- [x] 9. Google Meet link present on rescheduled event
+- [x] 10. No console errors during reschedule flow
 
 ---
 
@@ -595,11 +595,46 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 **Definition of done:** Week grid allows selection on any hour. Full-availability link still respects working hours. Visual distinction between working and extended hours on the grid.
 
 **Key decisions:**
-- Week grid renders hours beyond configured working hours range
+- Week grid renders 6 AM – 11 PM regardless of configured working hours
 - Visual distinction on grid between working hours (normal) and extended hours (dimmer or subtly marked)
 - Drag selection allowed across both working and extended hours
 - Full-availability link generation continues to respect working hours settings
 - Settings page unchanged — working hours still configurable, still apply to full-availability offers
+
+**Claude Code prompt:**
+> "Implement Sprint 14 for OpenSlot — extended hours for curated offers.
+>
+> **Overview:** The week grid currently only renders the owner's configured working hours. This sprint extends the grid to show 6 AM – 11 PM so owners can drag-select and offer times outside their working hours for curated offers. Working hours continue to restrict the full-availability link only.
+>
+> **Deliverable 1 — Extended Grid Range**
+>
+> Update WeekGrid to always render from 6:00 AM to 11:00 PM, regardless of the owner's configured working hours. The grid should show this full range on load.
+>
+> **Deliverable 2 — Visual Distinction**
+>
+> Hours outside the owner's configured working hours should be visually distinct from working hours. Use a dimmer background or subtle visual marker to indicate extended hours — something like a slightly darker fill (`rgba(255,255,255,0.02)`) or a subtle left-border accent. The distinction should be clear enough that the owner can see where their normal range ends, but not so heavy that it discourages selection. Working hours should look exactly as they do today — no visual change within the configured range.
+>
+> **Deliverable 3 — Drag Selection on Extended Hours**
+>
+> Drag selection must work across both working hours and extended hours. An owner can start a drag in working hours and extend into extended hours (or vice versa). The selected window is saved to the offer the same way it is today — no special handling for extended-hours slots.
+>
+> **Deliverable 4 — Full-Availability Link Unchanged**
+>
+> The 'Copy Availability Link' / 'Generate Availability Link' flow must continue to respect the owner's configured working hours. Only slots within configured working hours should be included in full-availability offers. Verify this still works correctly after the grid changes.
+>
+> **Deliverable 5 — Tests**
+>
+> Add or update tests to verify:
+> - Curated offers can include slots outside working hours
+> - Full-availability offers only include slots within working hours
+> - Booking page renders extended-hours slots correctly for curated offers
+> - Extended-hours slots are bookable end-to-end
+>
+> **Important implementation notes:**
+> - The grid range (6 AM – 11 PM) is hardcoded, not configurable. Working hours within that range are configurable via Settings.
+> - Busy blocks from Google Calendar should render in the extended hours range too — if the owner has a 7 AM meeting, it should show as blocked.
+> - The extended hours visual distinction should update dynamically if the owner changes their working hours in Settings.
+> - Reference `openslot-design-system.md` for all styling — use existing color tokens, do not introduce new accent colors."
 
 ### Sprint 14 — QA Checklist
 - [ ] 1. Week grid renders hours outside configured working hours

@@ -5,6 +5,10 @@ const DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5]; // Mon-Fri
 const DEFAULT_START_HOUR = 8;
 const DEFAULT_END_HOUR = 20;
 
+// Grid always renders this full range — working hours are a visual subset
+const GRID_START_HOUR = 6;
+const GRID_END_HOUR = 23;
+
 function parseHour(timeStr) {
   if (!timeStr) return null;
   const [h, m] = timeStr.split(':').map(Number);
@@ -61,7 +65,28 @@ function isSlotAvailable(dayDate, row, availableSlots, startHour, cellMinutes) {
   });
 }
 
-const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, onDurationChange, onSelectionChange, workingDays: propWorkingDays, workingHours: propWorkingHours }, ref) {
+function isCellBusy(dayDate, row, busyIntervals, startHour, cellMinutes) {
+  const totalMinutes = row * cellMinutes;
+  const cellStart = new Date(dayDate);
+  cellStart.setHours(startHour + Math.floor(totalMinutes / 60), totalMinutes % 60, 0, 0);
+  const cellEnd = new Date(cellStart);
+  cellEnd.setMinutes(cellEnd.getMinutes() + cellMinutes);
+
+  return busyIntervals.some((interval) => {
+    const bStart = new Date(interval.start);
+    const bEnd = new Date(interval.end);
+    return cellStart < bEnd && cellEnd > bStart;
+  });
+}
+
+function isWithinWorkingHours(row, workingStartHour, workingEndHour, cellMinutes) {
+  const totalMinutes = row * cellMinutes;
+  const cellHour = GRID_START_HOUR + totalMinutes / 60;
+  const cellEndHour = cellHour + cellMinutes / 60;
+  return cellHour >= workingStartHour && cellEndHour <= workingEndHour;
+}
+
+const WeekGrid = forwardRef(function WeekGrid({ slots, busyIntervals = [], onWeekChange, duration, onDurationChange, onSelectionChange, workingDays: propWorkingDays, workingHours: propWorkingHours }, ref) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selected, setSelected] = useState(new Set());
   const [isDragging, setIsDragging] = useState(false);
@@ -71,11 +96,11 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
   const gridRef = useRef(null);
 
   const workingDays = propWorkingDays || DEFAULT_WORKING_DAYS;
-  const startHour = propWorkingHours ? Math.floor(parseHour(propWorkingHours.start)) : DEFAULT_START_HOUR;
-  const endHour = propWorkingHours ? Math.ceil(parseHour(propWorkingHours.end)) : DEFAULT_END_HOUR;
+  const workingStartHour = propWorkingHours ? parseHour(propWorkingHours.start) : DEFAULT_START_HOUR;
+  const workingEndHour = propWorkingHours ? parseHour(propWorkingHours.end) : DEFAULT_END_HOUR;
   const cellMinutes = duration === 15 ? 15 : 30;
   const rowsPerHour = 60 / cellMinutes;
-  const ROWS = (endHour - startHour) * rowsPerHour;
+  const ROWS = (GRID_END_HOUR - GRID_START_HOUR) * rowsPerHour;
 
   const weekDatesData = getWeekDates(weekOffset, workingDays);
   const weekDates = weekDatesData.map((d) => d.date);
@@ -125,10 +150,10 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
       const date = weekDates[dayIdx];
       const windowStart = new Date(date);
       const startMin = startRow * cellMinutes;
-      windowStart.setHours(startHour + Math.floor(startMin / 60), startMin % 60, 0, 0);
+      windowStart.setHours(GRID_START_HOUR + Math.floor(startMin / 60), startMin % 60, 0, 0);
       const windowEnd = new Date(date);
       const endMin = (endRow + 1) * cellMinutes;
-      windowEnd.setHours(startHour + Math.floor(endMin / 60), endMin % 60, 0, 0);
+      windowEnd.setHours(GRID_START_HOUR + Math.floor(endMin / 60), endMin % 60, 0, 0);
 
       windows.push({
         start: windowStart.toISOString(),
@@ -137,7 +162,7 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
     }
 
     return windows;
-  }, [selected, weekDates, cellMinutes, startHour]);
+  }, [selected, weekDates, cellMinutes]);
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -153,12 +178,28 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
     onWeekChange(dates[0].date.toISOString());
   };
 
-  // Build set of available cells
+  // Build sets: available (within working hours, free) and selectable (not busy)
   const availableCells = new Set();
+  const selectableCells = new Set();
+  const extendedCells = new Set();
+
   weekDates.forEach((date, dayIdx) => {
     for (let row = 0; row < ROWS; row++) {
-      if (isSlotAvailable(date, row, slots, startHour, cellMinutes)) {
-        availableCells.add(cellKey(dayIdx, row));
+      const key = cellKey(dayIdx, row);
+      const busy = isCellBusy(date, row, busyIntervals, GRID_START_HOUR, cellMinutes);
+      const inWorkingHours = isWithinWorkingHours(row, workingStartHour, workingEndHour, cellMinutes);
+
+      if (busy) continue; // unavailable — not selectable
+
+      if (inWorkingHours && isSlotAvailable(date, row, slots, GRID_START_HOUR, cellMinutes)) {
+        availableCells.add(key);
+        selectableCells.add(key);
+      } else if (!inWorkingHours) {
+        extendedCells.add(key);
+        selectableCells.add(key);
+      } else {
+        // Within working hours but not in available slots (busy per availability engine)
+        // Don't add to selectable
       }
     }
   });
@@ -175,19 +216,19 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
     for (let d = minDay; d <= maxDay; d++) {
       for (let r = minRow; r <= maxRow; r++) {
         const key = cellKey(d, r);
-        if (availableCells.has(key)) {
+        if (selectableCells.has(key)) {
           cells.add(key);
         }
       }
     }
     return cells;
-  }, [dragStart, dragCurrent, availableCells]);
+  }, [dragStart, dragCurrent, selectableCells]);
 
   const dragCells = isDragging ? getDragCells() : new Set();
 
   const handleMouseDown = (dayIdx, row) => {
     const key = cellKey(dayIdx, row);
-    if (!availableCells.has(key)) return;
+    if (!selectableCells.has(key)) return;
 
     const mode = selected.has(key) ? 'deselect' : 'select';
     setIsDragging(true);
@@ -231,6 +272,18 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Auto-scroll to working hours on mount
+  const scrollRef = useRef(false);
+  useEffect(() => {
+    if (!scrollRef.current && gridRef.current) {
+      const workingRowStart = (workingStartHour - GRID_START_HOUR) * rowsPerHour;
+      const cellHeight = 34; // matches CSS .grid-cell height
+      const scrollTarget = Math.max(0, (workingRowStart - 1) * cellHeight);
+      gridRef.current.scrollTop = scrollTarget;
+      scrollRef.current = true;
+    }
+  }, [workingStartHour, rowsPerHour]);
 
   return (
     <div className="owner-view">
@@ -284,7 +337,7 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
 
           {/* Grid rows */}
           {Array.from({ length: ROWS }, (_, row) => {
-            const { label, isHour } = formatHour(row, startHour, cellMinutes);
+            const { label, isHour } = formatHour(row, GRID_START_HOUR, cellMinutes);
             const isFirstRow = row === 0;
             return (
               <React.Fragment key={row}>
@@ -296,15 +349,21 @@ const WeekGrid = forwardRef(function WeekGrid({ slots, onWeekChange, duration, o
                 </div>
                 {weekDates.map((_, dayIdx) => {
                   const key = cellKey(dayIdx, row);
-                  const available = availableCells.has(key);
+                  const isAvailable = availableCells.has(key);
+                  const isExtended = extendedCells.has(key);
+                  const isSelectable = selectableCells.has(key);
                   const isSelected = selected.has(key);
                   const isSelecting = dragCells.has(key);
                   const willDeselect = isSelecting && dragMode === 'deselect';
 
                   let className = 'grid-cell';
                   if (!isHour) className += ' hour-start';
-                  if (!available) {
+                  if (!isSelectable) {
                     className += ' unavailable';
+                  } else if (isExtended) {
+                    className += ' extended';
+                    if (isSelected && !willDeselect) className += ' selected';
+                    else if (isSelecting && dragMode === 'select') className += ' selecting';
                   } else {
                     className += ' available';
                     if (isSelected && !willDeselect) className += ' selected';

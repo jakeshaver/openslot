@@ -75,6 +75,7 @@ function generateMessage(offer) {
 function App() {
   const [user, setUser] = useState(null);
   const [slots, setSlots] = useState([]);
+  const [busyIntervals, setBusyIntervals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [duration, setDuration] = useState(30);
   const [availConfig, setAvailConfig] = useState(null);
@@ -112,6 +113,7 @@ function App() {
       if (!res.ok) throw new Error('Failed to fetch availability');
       const data = await res.json();
       setSlots(data.slots);
+      setBusyIntervals(data.busyIntervals || []);
       if (data.config) setAvailConfig(data.config);
     } catch {
       // Error handled silently
@@ -151,6 +153,7 @@ function App() {
     await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
     setUser(null);
     setSlots([]);
+    setBusyIntervals([]);
   };
 
   // Copy Availability Link
@@ -475,6 +478,7 @@ function App() {
                   <WeekGrid
                     ref={weekGridRef}
                     slots={slots}
+                    busyIntervals={busyIntervals}
                     onWeekChange={fetchAvailability}
                     duration={duration}
                     onDurationChange={setDuration}
