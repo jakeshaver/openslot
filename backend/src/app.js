@@ -47,7 +47,10 @@ app.get('/health', (req, res) => {
 
 // Serve React frontend static files in production
 const path = require('path');
-const frontendBuild = path.join(__dirname, '../../frontend/build');
+const fs = require('fs');
+const localBuild = path.join(__dirname, '../../frontend/build');
+const deployBuild = path.join(__dirname, '../frontend-build');
+const frontendBuild = fs.existsSync(localBuild) ? localBuild : deployBuild;
 app.use(express.static(frontendBuild));
 app.get('*', (req, res) => {
   res.sendFile(path.join(frontendBuild, 'index.html'));
