@@ -557,7 +557,7 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 
 ---
 
-### Sprint 13 — Rescheduling ⏳ Upcoming
+### Sprint 13 — Rescheduling ✅
 **Goal:** Recipients can self-service reschedule a booking without owner involvement.  
 **Definition of done:** Every booking confirmation includes a reschedule link. Recipient clicks it, sees available times, picks a new one, calendar event is moved. Old slot freed up.
 
@@ -571,78 +571,10 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 - No reschedule notification to owner — deferred until Gmail notification (bug #6) is fixed
 - Successful reschedule updates calendar event in place via `events.patch` — preserves attendees, Meet link, everything except start/end time
 
-**Claude Code prompt:**
-> "Implement Sprint 13 for OpenSlot — self-service rescheduling for recipients.
->
-> **Overview:** Every booking confirmation calendar invite should include a reschedule link. When a recipient clicks it, they see available times and can move their meeting to a new slot. The original calendar event is updated in place (not deleted and recreated). The old slot is freed up.
->
-> **Deliverable 1 — Data Model Updates**
->
-> Add to the offer document in Firestore:
-> - `claimedBy` object on claimed offers: `{ name, email, calendarEventId, slotStart, slotEnd }` — stores the booking details needed for rescheduling
-> - `calendarEventId` is the Google Calendar event ID returned when the event is created during initial booking
->
-> Update the booking route (`POST /api/offers/:offerId/book`) to save `claimedBy` with the event ID when a booking succeeds. The `calendarEventId` comes from the Google Calendar `events.insert` response.
->
-> **Deliverable 2 — Reschedule Link in Calendar Invite**
->
-> When creating the Google Calendar event during booking, include a reschedule URL in the event description. Format: `Reschedule: {BASE_URL}/reschedule/{offerId}`
->
-> The link should be clearly visible in the event description — put it on its own line near the top.
->
-> **Deliverable 3 — Backend Reschedule Endpoint**
->
-> Create `GET /api/offers/:offerId/reschedule` (public, no auth required):
-> - Validate the offer exists and status is `claimed`
-> - Check that the original meeting end time has NOT passed — if it has, return `reschedule_expired` error
-> - Determine available slots based on offer type:
->   - If offer has `windows` (curated offer): return remaining available slots from the original windows, with live calendar conflict check. Filter out past-time slots (same as regular booking page).
->   - If offer was a full-availability offer: fetch fresh availability from the owner's calendar using stored settings (working hours, buffer time, working days, duration). Same logic as the Copy Availability Link offer creation, but returned as available slots.
-> - Return the available slots, offer duration, timezone, and the currently booked slot info
->
-> Create `POST /api/offers/:offerId/reschedule` (public, no auth required):
-> - Validate the offer exists and status is `claimed`
-> - Check that the original meeting end time has NOT passed
-> - Validate the requested new slot is available (live conflict check)
-> - Validate the requested new slot's start time is in the future
-> - Use Google Calendar API `events.patch` to update the existing event (using stored `calendarEventId`): change `start` and `end` times. Leave attendees, Google Meet link, and everything else unchanged.
-> - Update the offer's `claimedBy.slotStart` and `claimedBy.slotEnd` in Firestore to reflect the new time
-> - Return success with the updated event details
-> - Rate limit this endpoint same as the booking endpoint (10 attempts per IP per 15-minute window)
->
-> **Deliverable 4 — Frontend Reschedule Page**
->
-> Create a new page at `/reschedule/:offerId`. This is a public page (no auth required), similar to the booking page but for rescheduling.
->
-> Layout:
-> - Show the currently booked time at the top: 'Your current booking: [Day], [Date] at [Time] — [Duration]'
-> - Below that, month calendar on left, time slots on right — same layout as the existing booking page
-> - Available slots shown per the backend logic (curated = original offer slots, full-avail = fresh availability)
-> - Selected slot highlighted in Amber (same as booking page)
-> - Confirm button: 'Reschedule to [new time]' in Amber
-> - Success state: 'Meeting rescheduled to [new time]' with green confirmation, same pattern as booking confirmation
-> - If no slots available on a curated offer: 'No other times from this offer are available. Please reach out to the organizer to find a new time.'
-> - If reschedule link is expired (meeting already passed): show expired error page similar to expired offer page
->
-> Styling: use the same booking page styles and design system. Arc Blue for structure, Amber for actions. Glassmorphism panels. This should feel like a natural extension of the existing booking page.
->
-> **Deliverable 5 — Tests**
->
-> Add tests for:
-> - Reschedule GET returns available slots for a claimed offer
-> - Reschedule GET returns `reschedule_expired` when meeting end time has passed
-> - Reschedule POST successfully updates the calendar event time
-> - Reschedule POST rejects past-time slots
-> - Reschedule POST rejects conflicting slots
-> - Reschedule POST on an unclaimed offer returns an error
-> - Rate limiting applies to reschedule POST endpoint
->
-> **Important implementation notes:**
-> - The reschedule page must support timezone display the same way the booking page does — auto-detect browser timezone, searchable override dropdown
-> - `events.patch` only needs to update `start` and `end` — do not touch `attendees`, `conferenceData`, or `summary`
-> - The reschedule link does NOT require the recipient to re-enter their name and email — the system already has that from the original booking
-> - Do not send any notification emails on reschedule (Gmail notification is not yet working — this will be added in a future sprint)
-> - Reference `openslot-design-system.md` for all styling"
+**UX Fixes (post-delivery):**
+1. **Slot snapping** — Buffer time was creating awkward :15/:45 start times on 30-min slots. Added `snapForward()` to the availability engine that snaps slot boundaries to clean intervals matching the duration (30-min → :00/:30, 45-min → :00/:45, 60-min → :00). Applied to both window start and post-busy-block cursor.
+2. **Inline confirm on reschedule page** — Replaced separate confirm button with an inline "Confirm" button that slides into the selected slot row. Full slot list stays visible; selecting a different slot moves the confirm button. Tested via interactive HTML mockup (Option A: bar below list vs Option B: inline on row — Option B chosen).
+3. **Booking page consistency** — Same always-visible slot list with amber highlight on selected slot. Booking form appears below the list (not collapsed).
 
 ### Sprint 13 — QA Checklist
 - [ ] 1. Booking confirmation calendar invite includes a reschedule link
