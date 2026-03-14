@@ -533,6 +533,25 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 14 — Extended Hours for Curated Offers ✅ March 2026
+**Outcome:** Owners can drag-select and offer times outside their configured working hours. Week grid now renders 6 AM – 11 PM with visual distinction between working and extended hours.
+
+**What changed:**
+- **Grid range** — WeekGrid hardcoded to 6 AM – 11 PM regardless of working hours settings. Previously only rendered configured working hours range.
+- **Visual distinction** — Extended-hours cells render at 50% opacity, brightening on hover/select. Working-hours cells render at full brightness as before.
+- **Drag selection** — Works seamlessly across both zones. An owner can start a drag in working hours and extend into early morning or evening.
+- **Busy blocks in extended range** — Backend availability API now returns merged busy intervals (start/end only, no event details) alongside free slots. Calendar events at 7 AM or 9 PM show as blocked with the same striped pattern.
+- **Auto-scroll** — Grid scrolls to working hours on load so the owner doesn't start staring at 6 AM.
+- **Full-availability link unchanged** — Still only includes slots within configured working hours.
+
+**Data backfill:**
+- One-off script to backfill reschedule link for offer `27aaacd9` (booked before Sprint 13). Added `calendarEventId` to Firestore and patched the Google Calendar event description with the production reschedule URL.
+
+**Deploy fix:**
+- Discovered deploys were running from `backend/` instead of repo root, causing frontend static files to be missing. Switched to deploying from repo root using the existing multi-stage Dockerfile.
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
