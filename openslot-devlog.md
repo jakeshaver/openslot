@@ -554,6 +554,44 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 15 — Offer Dashboard ✅ March 2026
+**Outcome:** Owners can see all their offers, label them, extend expiry, revoke links, and configure default expiry. New `/offers` dashboard page with full offer lifecycle management.
+
+**Deliverable 1 — Optional Offer Label:**
+- Text input appears in desktop Send Slots flow when slots are selected
+- Stored as `label` field (nullable string) on the Firestore offer document
+- Dashboard falls back to first window time range when no label set
+
+**Deliverable 2 — Offer Dashboard Page:**
+- New `/offers` route with `Offers.js` component, accessible via list icon in nav
+- Lists all offers sorted by `createdAt` descending
+- Each row: label (or time fallback), status badge, created/expiry dates, booked-by name
+- Active/Claimed grouped on top, Expired below with visual separation
+
+**Deliverable 3 — Per-Offer Actions:**
+- Copy Link — copies `/book/:offerId` URL to clipboard
+- Extend — inline +7/+14/+30 day buttons, updates `expiresAt` in Firestore
+- Revoke — inline "Are you sure?" confirmation, sets status to `expired` immediately
+- Expired offers show no actions
+
+**Deliverable 4 — Global Expiry Default in Settings:**
+- Offer Expiry stepper (1–30 days, default 7) added to Settings page
+- Stored as `offerExpiryDays` in Firestore settings document
+- Applied to all newly created offers; existing offers unaffected
+
+**Deliverable 5 — Backend Routes:**
+- `GET /api/offers` — returns all offers for current owner (tokens stripped)
+- `PATCH /api/offers/:offerId/expiry` — extends expiry, validates owner
+- `POST /api/offers/:offerId/revoke` — immediately expires, validates owner
+- 12 new tests in `dashboard.test.js` (87 total)
+
+**Post-deploy fix:**
+- Firestore `where()` + `orderBy()` on different fields requires a composite index that wasn't created. Query threw silently, dashboard showed empty. Fixed by sorting in JS after the query.
+
+**Deployed to production:** 2026-03-16 — revision `openslot-00037-tv4`.
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
