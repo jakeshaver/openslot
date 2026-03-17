@@ -1253,6 +1253,247 @@ a.app-logo {
 }
 
 /* ========================= */
+/* OFFERS DASHBOARD           */
+/* ========================= */
+
+.offers-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.offers-panel {
+  background: var(--bg-glass);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+}
+
+.offers-panel h2 {
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.offers-empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.offers-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.offers-section-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.offers-expired-section {
+  border-top: 1px solid var(--border-glass);
+  padding-top: 0.5rem;
+}
+
+.offer-row {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  transition: border-color 0.2s ease;
+}
+
+.offer-row:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.offer-row-expired {
+  opacity: 0.5;
+}
+
+.offer-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.offer-row-label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.offer-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge-active {
+  background: rgba(0, 168, 255, 0.12);
+  color: var(--blue);
+  border: 1px solid rgba(0, 168, 255, 0.25);
+}
+
+.badge-claimed {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.badge-expired {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.offer-row-meta {
+  display: flex;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 0.75rem;
+}
+
+.offer-booked-by {
+  color: var(--amber);
+}
+
+.offer-row-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-offer-action {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-offer-action:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.btn-offer-action.copied {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.btn-revoke:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.extend-options, .revoke-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-extend-option {
+  background: rgba(0, 168, 255, 0.08);
+  border: 1px solid rgba(0, 168, 255, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--blue);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-extend-option:hover {
+  background: rgba(0, 168, 255, 0.15);
+  border-color: var(--blue);
+}
+
+.btn-extend-cancel {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+}
+
+.btn-extend-cancel:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.btn-revoke-yes {
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--error);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-revoke-yes:hover {
+  background: rgba(244, 63, 94, 0.2);
+}
+
+.label-input {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  outline: none;
+  transition: border-color 0.2s ease;
+  width: 240px;
+}
+
+.label-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 8px rgba(0, 168, 255, 0.15);
+}
+
+.label-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* ========================= */
 /* RESPONSIVE                 */
 /* ========================= */
 

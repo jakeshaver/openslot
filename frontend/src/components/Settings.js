@@ -46,6 +46,7 @@ export default function Settings() {
   const [workingHoursEnd, setWorkingHoursEnd] = useState(DEFAULTS.workingHours.end);
   const [bufferMinutes, setBufferMinutes] = useState(DEFAULTS.bufferMinutes);
   const [defaultDuration, setDefaultDuration] = useState(DEFAULTS.defaultDuration);
+  const [offerExpiryDays, setOfferExpiryDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -65,6 +66,7 @@ export default function Settings() {
             }
             if (s.bufferMinutes !== undefined) setBufferMinutes(s.bufferMinutes);
             if (s.defaultDuration !== undefined) setDefaultDuration(s.defaultDuration);
+            if (s.offerExpiryDays !== undefined) setOfferExpiryDays(s.offerExpiryDays);
           }
         }
       } catch {
@@ -100,6 +102,7 @@ export default function Settings() {
           workingHours: { start: workingHoursStart, end: workingHoursEnd },
           bufferMinutes: parseInt(bufferMinutes, 10) || 0,
           defaultDuration: parseInt(defaultDuration, 10) || 30,
+          offerExpiryDays: parseInt(offerExpiryDays, 10) || 7,
         }),
       });
       if (res.ok) {
@@ -197,6 +200,23 @@ export default function Settings() {
               <button
                 className="stepper-btn"
                 onClick={() => setDefaultDuration((v) => Math.min(180, parseInt(v, 10) + 15))}
+              >+</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-section settings-section-half">
+            <label className="settings-label">Offer Expiry (days)</label>
+            <div className="stepper">
+              <button
+                className="stepper-btn"
+                onClick={() => setOfferExpiryDays((v) => Math.max(1, parseInt(v, 10) - 1))}
+              >−</button>
+              <span className="stepper-value">{offerExpiryDays}</span>
+              <button
+                className="stepper-btn"
+                onClick={() => setOfferExpiryDays((v) => Math.min(30, parseInt(v, 10) + 1))}
               >+</button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import WeekGrid from './components/WeekGrid';
 import PublicBooking from './components/PublicBooking';
 import Reschedule from './components/Reschedule';
 import Settings from './components/Settings';
+import Offers from './components/Offers';
 import './App.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
@@ -47,6 +48,19 @@ function GearIcon() {
   );
 }
 
+function ListIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
+
 // Format a time window as a single line with range
 function formatWindowLine(win) {
   const start = new Date(win.start);
@@ -84,6 +98,9 @@ function App() {
   // Selection state (driven by WeekGrid callback)
   const [selectedCount, setSelectedCount] = useState(0);
 
+  // Offer label state
+  const [offerLabel, setOfferLabel] = useState('');
+
   // Send Slots modal state
   const [sendSaving, setSendSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -120,13 +137,13 @@ function App() {
     }
   }, []);
 
-  const createOffer = useCallback(async (windows, offerDuration) => {
+  const createOffer = useCallback(async (windows, offerDuration, label) => {
     try {
       const res = await fetch(`${API_BASE}/api/offers`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ windows, duration: offerDuration, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        body: JSON.stringify({ windows, duration: offerDuration, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, label: label || null }),
       });
       if (!res.ok) throw new Error('Failed to create offer');
       const data = await res.json();
@@ -317,10 +334,11 @@ function App() {
     setSendSaving(true);
     try {
       const windows = weekGridRef.current.getSelectedWindows();
-      const offer = await createOffer(windows, duration);
+      const offer = await createOffer(windows, duration, offerLabel.trim() || null);
       setOfferData(offer);
       setShowModal(true);
       setModalCopied(false);
+      setOfferLabel('');
     } finally {
       setSendSaving(false);
     }
@@ -380,6 +398,35 @@ function App() {
           </main>
         </div>
       } />
+      <Route path="/offers" element={
+        <div className="app-shell">
+          <header className="app-header">
+            <a href="/" className="app-logo">Open<span>Slot</span></a>
+            {user && (
+              <div className="app-header-right">
+                <button className="btn-gear active" onClick={() => window.location.href = '/'} title="Back to calendar">
+                  <ListIcon />
+                </button>
+                <span className="user-name">{user.name}</span>
+                <button className="btn-ghost" onClick={handleSignOut}>Sign Out</button>
+              </div>
+            )}
+          </header>
+          <main className="app-main">
+            {user ? <Offers /> : (
+              <div className="sign-in-page">
+                <div className="sign-in-card">
+                  <h2>Sign in to view offers</h2>
+                  <button className="btn-google" onClick={handleSignIn}>
+                    <GoogleIcon />
+                    Sign in with Google
+                  </button>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      } />
       <Route path="*" element={
         <div className="app-shell">
           <header className="app-header">
@@ -401,6 +448,9 @@ function App() {
                   onClick={handleCopyAvailabilityLink}
                 >
                   {linkSaving ? 'Saving...' : linkCopied ? 'Copied!' : 'Copy Availability Link'}
+                </button>
+                <button className="btn-gear" onClick={() => window.location.href = '/offers'} title="Your offers">
+                  <ListIcon />
                 </button>
                 <button className="btn-gear" onClick={() => window.location.href = '/settings'} title="Settings">
                   <GearIcon />
@@ -475,6 +525,15 @@ function App() {
 
                 {/* Desktop owner view — full week grid */}
                 <div className="desktop-owner-view">
+                  {selectedCount > 0 && (
+                    <input
+                      className="label-input"
+                      type="text"
+                      placeholder="Label this offer (optional)"
+                      value={offerLabel}
+                      onChange={(e) => setOfferLabel(e.target.value)}
+                    />
+                  )}
                   <WeekGrid
                     ref={weekGridRef}
                     slots={slots}
