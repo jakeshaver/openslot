@@ -429,7 +429,7 @@ router.post('/:offerId/reschedule', rateLimit({ maxAttempts: 10, windowMs: 15 * 
   }
 
   try {
-    const { calendar } = createCalendarClient(offer.tokens);
+    const { oauth2Client, calendar } = createCalendarClient(offer.tokens);
 
     // Live conflict check on the new slot
     const conflicts = await fetchBusyEvents(calendar, new Date(newSlot.start), new Date(newSlot.end));
@@ -464,6 +464,11 @@ router.post('/:offerId/reschedule', rateLimit({ maxAttempts: 10, windowMs: 15 * 
     const newStatus = allClaimed ? 'claimed' : 'active';
 
     await store.updateOffer(offer.id, { slots: updatedSlots, status: newStatus });
+
+    // Fire-and-forget: notify owner of reschedule
+    sendRescheduleNotification(oauth2Client, offer, claimedSlot, newSlot, claimedSlot.bookedBy.name).catch((err) => {
+      console.error('Reschedule notification email failed:', err.message, err.response?.data || err.code || '');
+    });
 
     res.json({
       success: true,
@@ -528,6 +533,45 @@ async function sendOwnerNotification(oauth2Client, offer, slot, guestName, guest
     ``,
     `A calendar event has been created automatically.`,
   ].join('\n');
+
+  const message = [
+    `From: ${offer.ownerEmail}`,
+    `To: ${offer.ownerEmail}`,
+    `Subject: ${encodedSubject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/plain; charset=utf-8`,
+    ``,
+    body,
+  ].join('\r\n');
+
+  const encoded = Buffer.from(message).toString('base64url');
+
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw: encoded },
+  });
+}
+
+/**
+ * Send a reschedule notification email to the owner via Gmail API.
+ */
+async function sendRescheduleNotification(oauth2Client, offer, oldSlot, newSlot, bookerName) {
+  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  const tz = offer.timezone || 'America/New_York';
+
+  const newStart = new Date(newSlot.start);
+  const newDayLabel = newStart.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+  const newStartTime = newStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+  const newEndTime = new Date(newSlot.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: tz });
+
+  const oldStart = new Date(oldSlot.start);
+  const oldDayLabel = oldStart.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+  const oldStartTime = oldStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+  const oldEndTime = new Date(oldSlot.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: tz });
+
+  const subject = `Rescheduled: ${bookerName} — ${newDayLabel} at ${newStartTime}`;
+  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
+  const body = `${bookerName} rescheduled their booking from ${oldDayLabel} at ${oldStartTime} – ${oldEndTime} to ${newDayLabel} at ${newStartTime} – ${newEndTime}. Updated invite is on your calendar.`;
 
   const message = [
     `From: ${offer.ownerEmail}`,
