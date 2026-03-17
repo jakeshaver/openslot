@@ -116,10 +116,9 @@ async function getOffersByOwner(ownerEmail) {
   let offers = [];
 
   if (useFirestore) {
-    const snapshot = await offersCol.where('ownerEmail', '==', ownerEmail)
-      .orderBy('createdAt', 'desc')
-      .get();
+    const snapshot = await offersCol.where('ownerEmail', '==', ownerEmail).get();
     offers = snapshot.docs.map((doc) => doc.data());
+    offers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   } else {
     offers = [...memStore.values()]
       .filter((o) => o.ownerEmail === ownerEmail)
