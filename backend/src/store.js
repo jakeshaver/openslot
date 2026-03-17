@@ -42,10 +42,11 @@ function generateSlots(windows, duration) {
 
 // ─── API ────────────────────────────────────────────────────────────
 
-async function createOffer({ ownerEmail, windows, duration, tokens, timezone }) {
+async function createOffer({ ownerEmail, windows, duration, tokens, timezone, label, expiryDays }) {
   const id = crypto.randomBytes(4).toString('hex');
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const days = expiryDays || 7;
+  const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
   const slots = generateSlots(windows, duration);
 
@@ -57,6 +58,7 @@ async function createOffer({ ownerEmail, windows, duration, tokens, timezone }) 
     slots,
     tokens,
     timezone,
+    label: label || null,
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
     status: 'active',
@@ -108,6 +110,34 @@ async function updateOffer(id, updates) {
     memStore.set(id, offer);
     return offer;
   }
+}
+
+async function getOffersByOwner(ownerEmail) {
+  let offers = [];
+
+  if (useFirestore) {
+    const snapshot = await offersCol.where('ownerEmail', '==', ownerEmail)
+      .orderBy('createdAt', 'desc')
+      .get();
+    offers = snapshot.docs.map((doc) => doc.data());
+  } else {
+    offers = [...memStore.values()]
+      .filter((o) => o.ownerEmail === ownerEmail)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  // Auto-expire any stale offers
+  const now = new Date();
+  for (const offer of offers) {
+    if (now > new Date(offer.expiresAt) && offer.status === 'active') {
+      offer.status = 'expired';
+      if (useFirestore) {
+        await offersCol.doc(offer.id).update({ status: 'expired' });
+      }
+    }
+  }
+
+  return offers;
 }
 
 async function claimSlot(offerId, slotIndex, bookedBy) {
@@ -217,4 +247,4 @@ async function clearAll() {
   }
 }
 
-module.exports = { createOffer, getOffer, updateOffer, claimSlot, getSettings, saveSettings, checkRateLimit, clearAll };
+module.exports = { createOffer, getOffer, getOffersByOwner, updateOffer, claimSlot, getSettings, saveSettings, checkRateLimit, clearAll };

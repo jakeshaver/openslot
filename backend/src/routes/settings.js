@@ -24,13 +24,14 @@ router.get('/', requireAuth, async (req, res) => {
  */
 router.put('/', requireAuth, async (req, res) => {
   try {
-    const { workingDays, workingHours, bufferMinutes, defaultDuration } = req.body;
+    const { workingDays, workingHours, bufferMinutes, defaultDuration, offerExpiryDays } = req.body;
 
     const settings = {};
     if (workingDays !== undefined) settings.workingDays = workingDays;
     if (workingHours !== undefined) settings.workingHours = workingHours;
     if (bufferMinutes !== undefined) settings.bufferMinutes = bufferMinutes;
     if (defaultDuration !== undefined) settings.defaultDuration = defaultDuration;
+    if (offerExpiryDays !== undefined) settings.offerExpiryDays = offerExpiryDays;
 
     await store.saveSettings(req.session.user.email, settings);
     res.json({ settings });

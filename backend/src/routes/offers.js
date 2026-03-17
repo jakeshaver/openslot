@@ -9,6 +9,21 @@ const { rateLimit } = require('../middleware/rateLimit');
 const router = express.Router();
 
 /**
+ * GET /api/offers
+ * Owner-only — returns all offers for the current user.
+ */
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    const offers = await store.getOffersByOwner(req.session.user.email);
+    const safeOffers = offers.map(({ tokens, ...rest }) => rest);
+    res.json({ offers: safeOffers });
+  } catch (err) {
+    console.error('Dashboard fetch error:', err.message);
+    res.status(500).json({ error: 'Failed to load offers' });
+  }
+});
+
+/**
  * POST /api/offers
  * Create a new slot offer from owner's selected time windows.
  * Body: { windows: [{ start, end }], duration: 30|45|60 }
@@ -34,17 +49,63 @@ router.post('/', requireAuth, async (req, res) => {
     }
   }
 
+  const userSettings = await store.getSettings(req.session.user.email) || {};
+
   const offer = await store.createOffer({
     ownerEmail: req.session.user.email,
     windows,
     duration,
     tokens: req.session.tokens,
     timezone: req.body.timezone || 'America/New_York',
+    label: req.body.label || null,
+    expiryDays: userSettings.offerExpiryDays || 7,
   });
 
   // Return offer without tokens
   const { tokens, ...safeOffer } = offer;
   res.status(201).json({ offer: safeOffer });
+});
+
+/**
+ * PATCH /api/offers/:offerId/expiry
+ * Owner-only — extend an offer's expiry date.
+ * Body: { extendDays: number }
+ */
+router.patch('/:offerId/expiry', requireAuth, async (req, res) => {
+  const { extendDays } = req.body;
+
+  if (!extendDays || typeof extendDays !== 'number' || extendDays < 1 || extendDays > 30) {
+    return res.status(400).json({ error: 'extendDays must be a number between 1 and 30' });
+  }
+
+  const offer = await store.getOffer(req.params.offerId);
+  if (!offer) return res.status(404).json({ error: 'Offer not found' });
+  if (offer.ownerEmail !== req.session.user.email) {
+    return res.status(403).json({ error: 'Not authorized' });
+  }
+
+  const newExpiry = new Date(new Date(offer.expiresAt).getTime() + extendDays * 24 * 60 * 60 * 1000);
+  await store.updateOffer(offer.id, {
+    expiresAt: newExpiry.toISOString(),
+    status: 'active',
+  });
+
+  res.json({ expiresAt: newExpiry.toISOString() });
+});
+
+/**
+ * POST /api/offers/:offerId/revoke
+ * Owner-only — immediately expire an offer.
+ */
+router.post('/:offerId/revoke', requireAuth, async (req, res) => {
+  const offer = await store.getOffer(req.params.offerId);
+  if (!offer) return res.status(404).json({ error: 'Offer not found' });
+  if (offer.ownerEmail !== req.session.user.email) {
+    return res.status(403).json({ error: 'Not authorized' });
+  }
+
+  await store.updateOffer(offer.id, { status: 'expired' });
+  res.json({ status: 'expired' });
 });
 
 /**
