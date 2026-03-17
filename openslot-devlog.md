@@ -550,6 +550,8 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 **Deploy fix:**
 - Discovered deploys were running from `backend/` instead of repo root, causing frontend static files to be missing. Switched to deploying from repo root using the existing multi-stage Dockerfile.
 
+**Deployed to production:** 2026-03-16 — revision `openslot-00035-wt4` serving at `https://openslot-653554267204.us-east1.run.app`. Fixed Cloud Run traffic routing (`--to-latest`) — previous deploys created revisions but didn't route traffic.
+
 ---
 
 ## QA Standard
