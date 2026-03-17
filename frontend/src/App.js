@@ -328,21 +328,32 @@ function App() {
     }
   }, [generatedUrl, copyToClipboard]);
 
-  // Send Slots — get windows from WeekGrid, create offer, show modal
-  const handleSendSlots = useCallback(async () => {
-    if (sendSaving || !weekGridRef.current) return;
+  // Pending windows — captured when Send Slots is clicked, before offer creation
+  const [pendingWindows, setPendingWindows] = useState(null);
+
+  // Send Slots — capture windows and open modal (offer not created yet)
+  const handleSendSlots = useCallback(() => {
+    if (!weekGridRef.current) return;
+    const windows = weekGridRef.current.getSelectedWindows();
+    setPendingWindows(windows);
+    setOfferData(null);
+    setShowModal(true);
+    setModalCopied(false);
+    setOfferLabel('');
+  }, []);
+
+  // Generate Message — create the offer with label from inside the modal
+  const handleGenerateMessage = useCallback(async () => {
+    if (sendSaving || !pendingWindows) return;
     setSendSaving(true);
     try {
-      const windows = weekGridRef.current.getSelectedWindows();
-      const offer = await createOffer(windows, duration, offerLabel.trim() || null);
+      const offer = await createOffer(pendingWindows, duration, offerLabel.trim() || null);
       setOfferData(offer);
-      setShowModal(true);
       setModalCopied(false);
-      setOfferLabel('');
     } finally {
       setSendSaving(false);
     }
-  }, [sendSaving, duration, createOffer, offerLabel]);
+  }, [sendSaving, pendingWindows, duration, createOffer, offerLabel]);
 
   const handleModalCopy = async () => {
     const msg = generateMessage(offerData);
@@ -434,22 +445,12 @@ function App() {
             {user && (
               <div className="app-header-right">
                 {selectedCount > 0 && (
-                  <>
-                    <input
-                      className="label-input"
-                      type="text"
-                      placeholder="Label (optional)"
-                      value={offerLabel}
-                      onChange={(e) => setOfferLabel(e.target.value)}
-                    />
-                    <button
-                      className="btn-primary"
-                      disabled={sendSaving}
-                      onClick={handleSendSlots}
-                    >
-                      {sendSaving ? 'Saving...' : 'Send Slots'}
-                    </button>
-                  </>
+                  <button
+                    className="btn-primary"
+                    onClick={handleSendSlots}
+                  >
+                    Send Slots
+                  </button>
                 )}
                 <button
                   className={`btn-copy-link${linkCopied ? ' copied' : ''}`}
@@ -553,14 +554,41 @@ function App() {
           {showModal && (
             <div className="modal-overlay" onClick={() => setShowModal(false)}>
               <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-                <h3>Your message</h3>
-                <div className="message-preview">{generateMessage(offerData)}</div>
-                <div className="modal-actions">
-                  <button className="btn-ghost" onClick={() => setShowModal(false)}>Close</button>
-                  <button className={`btn-copy${modalCopied ? ' copied' : ''}`} onClick={handleModalCopy}>
-                    {modalCopied ? 'Copied!' : 'Copy to clipboard'}
-                  </button>
-                </div>
+                {!offerData ? (
+                  <>
+                    <h3>Send Slots</h3>
+                    <input
+                      className="label-input"
+                      type="text"
+                      placeholder="Label this offer (optional) — e.g. Goldman recruiter, Marcus follow-up"
+                      value={offerLabel}
+                      onChange={(e) => setOfferLabel(e.target.value)}
+                      style={{ width: '100%', marginBottom: '1rem', boxSizing: 'border-box' }}
+                      autoFocus
+                    />
+                    <div className="modal-actions">
+                      <button className="btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
+                      <button
+                        className="btn-primary"
+                        disabled={sendSaving}
+                        onClick={handleGenerateMessage}
+                      >
+                        {sendSaving ? 'Generating...' : 'Generate Message'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3>Your message</h3>
+                    <div className="message-preview">{generateMessage(offerData)}</div>
+                    <div className="modal-actions">
+                      <button className="btn-ghost" onClick={() => setShowModal(false)}>Close</button>
+                      <button className={`btn-copy${modalCopied ? ' copied' : ''}`} onClick={handleModalCopy}>
+                        {modalCopied ? 'Copied!' : 'Copy to clipboard'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
