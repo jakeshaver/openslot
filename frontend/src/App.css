@@ -44,6 +44,7 @@
   --blur: blur(16px);
   --blur-heavy: blur(24px);
   --error: #F43F5E;
+  --success: #10B981;
   --option-bg: #0f1628;
 }
 
@@ -1357,9 +1358,9 @@ a.app-logo {
 }
 
 .badge-claimed {
-  background: var(--amber-dim);
-  color: var(--amber);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .badge-expired {

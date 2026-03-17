@@ -342,7 +342,7 @@ function App() {
     } finally {
       setSendSaving(false);
     }
-  }, [sendSaving, duration, createOffer]);
+  }, [sendSaving, duration, createOffer, offerLabel]);
 
   const handleModalCopy = async () => {
     const msg = generateMessage(offerData);
@@ -434,13 +434,22 @@ function App() {
             {user && (
               <div className="app-header-right">
                 {selectedCount > 0 && (
-                  <button
-                    className="btn-primary"
-                    disabled={sendSaving}
-                    onClick={handleSendSlots}
-                  >
-                    {sendSaving ? 'Saving...' : 'Send Slots'}
-                  </button>
+                  <>
+                    <input
+                      className="label-input"
+                      type="text"
+                      placeholder="Label (optional)"
+                      value={offerLabel}
+                      onChange={(e) => setOfferLabel(e.target.value)}
+                    />
+                    <button
+                      className="btn-primary"
+                      disabled={sendSaving}
+                      onClick={handleSendSlots}
+                    >
+                      {sendSaving ? 'Saving...' : 'Send Slots'}
+                    </button>
+                  </>
                 )}
                 <button
                   className={`btn-copy-link${linkCopied ? ' copied' : ''}`}
@@ -525,15 +534,6 @@ function App() {
 
                 {/* Desktop owner view — full week grid */}
                 <div className="desktop-owner-view">
-                  {selectedCount > 0 && (
-                    <input
-                      className="label-input"
-                      type="text"
-                      placeholder="Label this offer (optional)"
-                      value={offerLabel}
-                      onChange={(e) => setOfferLabel(e.target.value)}
-                    />
-                  )}
                   <WeekGrid
                     ref={weekGridRef}
                     slots={slots}
