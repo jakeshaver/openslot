@@ -516,6 +516,7 @@ async function sendOwnerNotification(oauth2Client, offer, slot, guestName, guest
   const endTime = new Date(slot.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: tz });
 
   const subject = `New booking: ${guestName} — ${dayLabel} at ${startTime}`;
+  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
   const body = [
     `You have a new booking via OpenSlot.`,
     ``,
@@ -531,7 +532,7 @@ async function sendOwnerNotification(oauth2Client, offer, slot, guestName, guest
   const message = [
     `From: ${offer.ownerEmail}`,
     `To: ${offer.ownerEmail}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodedSubject}`,
     `MIME-Version: 1.0`,
     `Content-Type: text/plain; charset=utf-8`,
     ``,
