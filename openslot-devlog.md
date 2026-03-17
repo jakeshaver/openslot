@@ -597,6 +597,11 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 **Deployed to production:** 2026-03-17 — revision `openslot-00041-wv9`.
 
+**Post-Sprint 15 additions:**
+- **Gmail subject encoding fix** — em dash and non-ASCII characters in notification subject were rendering as garbled text (e.g. `Ã¢Â€Â"`). Subject now uses RFC 2047 `=?UTF-8?B?...?=` encoded-word syntax. Resolves bug #6 partially — Gmail send is working, encoding was the remaining issue.
+- **Reschedule notification** — owner now receives a Gmail notification when a recipient reschedules. Subject: "Rescheduled: [name] — [day] at [time]". Body shows old and new times. Fire-and-forget, UTF-8 Base64 encoded subject. Revision `openslot-00043-42j`.
+- **Expandable offer rows** — each row on `/offers` dashboard has a chevron toggle that expands to show "Offered Windows" with Arc Blue tinted time range rows.
+
 ---
 
 ## QA Standard
