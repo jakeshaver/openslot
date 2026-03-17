@@ -13,6 +13,27 @@ function formatWindowFallback(windows) {
   return `${day}, ${startTime}–${endTime}`;
 }
 
+function formatWindowDetail(win) {
+  const start = new Date(win.start);
+  const end = new Date(win.end);
+  const day = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const startTime = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const endTime = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${day} · ${startTime} – ${endTime}`;
+}
+
+function ChevronIcon({ expanded }) {
+  return (
+    <svg
+      viewBox="0 0 24 24" width="14" height="14" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ transition: 'transform 0.2s ease', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
 function StatusBadge({ status }) {
   let className = 'offer-badge';
   let label = status;
@@ -49,6 +70,7 @@ export default function Offers() {
   const [copiedId, setCopiedId] = useState(null);
   const [extendingId, setExtendingId] = useState(null);
   const [revokingId, setRevokingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -132,9 +154,12 @@ export default function Offers() {
           <div className="offers-section">
             {activeOffers.map((offer) => (
               <div key={offer.id} className="offer-row">
-                <div className="offer-row-main">
-                  <div className="offer-row-label">
-                    {offer.label || formatWindowFallback(offer.windows)}
+                <div className="offer-row-main" onClick={() => setExpandedId(expandedId === offer.id ? null : offer.id)} style={{ cursor: 'pointer' }}>
+                  <div className="offer-row-label-group">
+                    <ChevronIcon expanded={expandedId === offer.id} />
+                    <div className="offer-row-label">
+                      {offer.label || formatWindowFallback(offer.windows)}
+                    </div>
                   </div>
                   <StatusBadge status={offer.status} />
                 </div>
@@ -146,6 +171,14 @@ export default function Offers() {
                     return claimed ? <span className="offer-booked-by">Booked by {claimed.bookedBy.name}</span> : null;
                   })()}
                 </div>
+                {expandedId === offer.id && offer.windows && offer.windows.length > 0 && (
+                  <div className="offer-windows">
+                    <div className="offer-windows-label">Offered Windows</div>
+                    {offer.windows.map((win, i) => (
+                      <div key={i} className="offer-window-item">{formatWindowDetail(win)}</div>
+                    ))}
+                  </div>
+                )}
                 <div className="offer-row-actions">
                   <button
                     className={`btn-offer-action${copiedId === offer.id ? ' copied' : ''}`}
@@ -191,9 +224,12 @@ export default function Offers() {
             <h3 className="offers-section-title">Expired</h3>
             {expiredOffers.map((offer) => (
               <div key={offer.id} className="offer-row offer-row-expired">
-                <div className="offer-row-main">
-                  <div className="offer-row-label">
-                    {offer.label || formatWindowFallback(offer.windows)}
+                <div className="offer-row-main" onClick={() => setExpandedId(expandedId === offer.id ? null : offer.id)} style={{ cursor: 'pointer' }}>
+                  <div className="offer-row-label-group">
+                    <ChevronIcon expanded={expandedId === offer.id} />
+                    <div className="offer-row-label">
+                      {offer.label || formatWindowFallback(offer.windows)}
+                    </div>
                   </div>
                   <StatusBadge status={offer.status} />
                 </div>
@@ -205,6 +241,14 @@ export default function Offers() {
                     return claimed ? <span className="offer-booked-by">Booked by {claimed.bookedBy.name}</span> : null;
                   })()}
                 </div>
+                {expandedId === offer.id && offer.windows && offer.windows.length > 0 && (
+                  <div className="offer-windows">
+                    <div className="offer-windows-label">Offered Windows</div>
+                    {offer.windows.map((win, i) => (
+                      <div key={i} className="offer-window-item">{formatWindowDetail(win)}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

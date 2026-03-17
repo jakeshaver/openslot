@@ -1330,6 +1330,14 @@ a.app-logo {
   margin-bottom: 0.5rem;
 }
 
+.offer-row-label-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .offer-row-label {
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -1380,6 +1388,33 @@ a.app-logo {
 
 .offer-booked-by {
   color: var(--amber);
+}
+
+.offer-windows {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.offer-windows-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 0.15rem;
+}
+
+.offer-window-item {
+  background: rgba(0, 168, 255, 0.06);
+  border: 1px solid rgba(0, 168, 255, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .offer-row-actions {
