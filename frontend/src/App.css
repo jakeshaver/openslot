@@ -1472,6 +1472,18 @@ a.app-logo {
   background: rgba(244, 63, 94, 0.2);
 }
 
+.modal-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.label-input-row {
+  flex: 1;
+  width: auto;
+}
+
 .label-input {
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);

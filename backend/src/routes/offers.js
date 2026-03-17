@@ -67,6 +67,23 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 /**
+ * PATCH /api/offers/:offerId/label
+ * Owner-only — update an offer's label.
+ * Body: { label: string|null }
+ */
+router.patch('/:offerId/label', requireAuth, async (req, res) => {
+  const offer = await store.getOffer(req.params.offerId);
+  if (!offer) return res.status(404).json({ error: 'Offer not found' });
+  if (offer.ownerEmail !== req.session.user.email) {
+    return res.status(403).json({ error: 'Not authorized' });
+  }
+
+  const label = req.body.label || null;
+  await store.updateOffer(offer.id, { label });
+  res.json({ label });
+});
+
+/**
  * PATCH /api/offers/:offerId/expiry
  * Owner-only — extend an offer's expiry date.
  * Body: { extendDays: number }
