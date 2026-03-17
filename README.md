@@ -20,11 +20,14 @@ Built on Google Cloud with Node.js and React. MIT licensed.
 ## Features
 
 - **Drag-to-select availability** on a week grid showing your real calendar feed
+- **Extended hours grid** — grid renders 6 AM–11 PM so you can offer times outside your configured working hours for curated offers
 - **Two ways to share**: copy a full-availability link, or drag specific windows and generate a personal message with per-window booking links
+- **Offer dashboard** at `/offers` — see all your offers, their status, who booked, and take action (copy link, extend expiry, revoke)
+- **Tag your offers** — optional label on curated offers for easy identification on the dashboard
 - **Real-time conflict check** at booking time — no stale slots
 - **Google Meet links** added to every booking automatically
 - **Timezone support** — recipients can view times in their local timezone with a searchable dropdown
-- **Configurable** working days, hours, buffer time, and meeting duration via a settings page
+- **Configurable** working days, hours, buffer time, meeting duration, and offer expiry via a settings page
 - **Self-service rescheduling** — every calendar invite includes a reschedule link; recipients can move their booking without bothering the host
 - **No account required** for recipients — they just pick a time & confirm
 - **Rate limiting** on the booking endpoint to prevent abuse
@@ -37,7 +40,7 @@ The codebase is organized for clarity and maintainability:
 
 - **Backend route files** (`backend/src/routes/`) handle Express endpoints for availability, offers, calendar, settings, and auth
 - **Shared helpers** (`backend/src/helpers/calendar.js`) centralize Google Calendar authentication, event filtering, conflict checking, and slot math — used by all route files
-- **Frontend components** (`frontend/src/components/`) include `WeekGrid` (owner drag-to-select), `PublicBooking` (recipient booking flow), and `Settings` (configurable working hours/days)
+- **Frontend components** (`frontend/src/components/`) include `WeekGrid` (owner drag-to-select), `PublicBooking` (recipient booking flow), `Offers` (offer management dashboard), `Reschedule` (self-service rescheduling), and `Settings` (configurable working hours/days)
 - **CSS design system** in `App.css` uses custom properties (`--accent`, `--amber`, `--error`, etc.) for consistent theming
 
 ## Prerequisites
