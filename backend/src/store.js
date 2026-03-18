@@ -42,6 +42,18 @@ function generateSlots(windows, duration) {
 
 // ─── API ────────────────────────────────────────────────────────────
 
+/**
+ * SECURITY NOTE (Sprint 16 audit):
+ * OAuth tokens are stored on each offer document so public booking/reschedule
+ * routes can call the Calendar API without the owner being online. Risks:
+ * - Tokens are persisted in Firestore alongside offer data
+ * - If Firestore is breached, tokens could be used to access owner's calendar
+ * Mitigations:
+ * - Tokens are NEVER returned in any public API response (stripped in route handlers)
+ * - Firestore security rules (Sprint 17) will restrict direct client access
+ * - Cookie sessions use secure + sameSite flags in production
+ * - Session secret is in .env, never committed
+ */
 async function createOffer({ ownerEmail, windows, duration, tokens, timezone, label, expiryDays }) {
   const id = crypto.randomBytes(4).toString('hex');
   const now = new Date();

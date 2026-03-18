@@ -1,5 +1,5 @@
 # OpenSlot — Product Spec & Development Roadmap
-**Version:** 1.8  
+**Version:** 1.9  
 **Created:** March 2026  
 **Owner:** Project lead  
 **Stack:** GCP · Google Calendar API · OAuth 2.0 · Node.js · React  
@@ -60,6 +60,10 @@ Both are single-use. Neither is a persistent reusable link.
 - I receive a Gmail notification when someone books a slot
 - I can install the app on my iPhone home screen as a PWA
 - On mobile, I can copy my availability link without needing the full week grid
+- I can label an offer at generation time so I know who it was sent to
+- I can see all my active, claimed, and expired offers in a dashboard
+- I can revoke or extend an offer from the dashboard
+- I can copy an existing offer link from the dashboard without regenerating
 
 ### As the recipient (recruiter, colleague, etc.):
 - I can open a link and see the specific times offered to me
@@ -152,8 +156,8 @@ INTEGRATION
 3. **iCloud email recipients don't get calendar invite** — Google Calendar invites sent to iCloud email addresses appear in the recipient's inbox but don't attach to their Apple Calendar. Likely a CalDAV/`.ics` handshake issue between Google and Apple's calendar protocol. Needs investigation.
 4. ~~**"Copy Availability Link" copies wrong URL on iOS Firefox**~~ — resolved Sprint 8
 5. ~~**Booking form accepts malformed email addresses**~~ — resolved Sprint 8
-6. **Owner Gmail notification not firing** — Gmail API send has been silently failing across multiple sprints. Sprint 7 added error logging and fixed RFC 2822 message format but notification still not confirmed on production. Needs dedicated investigation: verify `gmail.send` OAuth scope is present on stored tokens, check Cloud Run logs for actual error, consider whether token refresh on Cloud Run is the root cause. Keep Gmail API, fix the implementation.
-7. ~~**Week grid loses context on scroll**~~ — resolved Sprint 12 (sticky headers, stronger separators, time label contrast)
+6. ~~**Owner Gmail notification not firing**~~ — resolved post-Sprint 15. Root cause: Gmail API was never enabled in the GCP project. Enabled via GCP Console. Subject line encoding also fixed (UTF-8 Base64 RFC 2047 encoded-word syntax). Reschedule notifications added at the same time.
+7. ~~**Week grid loses context on scroll**~~ — resolved Sprint 12
 
 ---
 
@@ -261,15 +265,6 @@ INTEGRATION
 **Goal:** App live on production URL. Full Availability offer type shipped. Firestore persistence. Timezone support. Owner notifications.  
 **Definition of done:** Real users can book via production URL. Owner is notified. Offers survive redeployments.
 
-**What was built:**
-- Deployed to GCP Cloud Run at `https://openslot-653554267204.us-east1.run.app`
-- "Copy Availability Link" button in nav — single click copies full-availability booking URL, no modal
-- Firestore persistence for offers — survive redeployments and cold starts
-- Timezone-aware booking page — auto-detects booker's browser timezone, searchable override dropdown
-- All times stored in UTC, rendered in local timezone on frontend
-- Owner Gmail notification on booking via Gmail API
-- Google OAuth scopes updated to include `gmail.send`
-
 ### Sprint 3.5 — QA Checklist ✅
 - [x] 1. "Copy Availability Link" button appears in nav
 - [x] 2. Clicking it copies a single URL to clipboard (no modal/panel)
@@ -287,16 +282,6 @@ INTEGRATION
 ### Sprint 4 — Usefulness ✅
 **Goal:** Make the app meaningfully more useful for the owner and booker.  
 **Definition of done:** Google Meet added to every invite. Owner can configure their own working days, hours, buffer, and duration via a settings page. All availability calculations respect saved settings.
-
-**Key decisions:**
-- Settings stored in Firestore under the owner's user document (keyed by Google user ID)
-- Availability engine reads from saved settings, falls back to defaults if none exist
-- Working days fully configurable (any combination of Sun–Sat)
-- Working hours fully configurable across full 12am–12am range in 30-min increments
-- Buffer time and default duration are free numeric inputs in minutes
-- Google Meet added via `conferenceData` in Calendar API — no new dependencies
-- `workingDays` stored as array of day numbers `[0=Sun, 1=Mon, ..., 6=Sat]`
-- Today button added to week grid header
 
 ### Sprint 4 — QA Checklist ✅
 - [x] 1. Gear icon appears in nav and links to `/settings`
@@ -316,13 +301,6 @@ INTEGRATION
 **Goal:** Lock down the API. Add CI to catch regressions on every push.  
 **Definition of done:** `/api/availability` is inaccessible to unauthenticated users. GitHub Actions runs tests on every PR.
 
-**Key decisions:**
-- All 5 owner routes already had `requireAuth` middleware correctly applied
-- New `security.test.js` with 8 tests — 50 total tests
-- CI runs frontend build — no frontend unit tests yet
-- No deployment step in CI — manual via `gcloud run deploy`
-- Node.js bumped to 22 in CI
-
 ### Sprint 5 — QA Checklist ✅
 - [x] 1. `/api/availability` returns 401 without valid session
 - [x] 2. `/api/offers` POST returns 401 without valid session
@@ -340,12 +318,6 @@ INTEGRATION
 ### Sprint 6 — Security Hardening ✅
 **Goal:** Harden the app against abuse and data leakage before open-sourcing.  
 **Definition of done:** Rate limiting active. No private calendar data exposed. No secrets leaking through errors or API responses.
-
-**Key decisions:**
-- Firestore-backed rate limiting — 10 attempts per IP per 15-minute rolling window on booking endpoint
-- CAPTCHA out of scope — rate limiting preferred to avoid user friction
-- Offer IDs are `crypto.randomUUID()` (128-bit) — sufficient entropy
-- `rateLimits` Firestore collection keyed by sanitized IP address
 
 ### Sprint 6 — QA Checklist ✅
 - [x] 1. Booking endpoint returns 429 after 10 rapid attempts from same IP
@@ -365,13 +337,6 @@ INTEGRATION
 **Goal:** Fix persistent owner notification bug, resolve backlog edge cases, and improve calendar grid readability and duration selector UX.  
 **Definition of done:** Invalid bookings no longer void offers. Booking page reflects live calendar state. Duration selector includes 15-min option. Calendar grid is clearly readable in bright environments. Gmail notification partially fixed (message format corrected, still under investigation on production).
 
-**Key decisions:**
-- Owner Gmail notification failure is a silent backend error — needs investigation and reliable error handling
-- Slot claiming only persists on verified successful Google Calendar event creation, not on submission attempt
-- Booking page re-checks live calendar state on every load — slots blocked by calendar changes since offer creation are silently hidden (consistent with claimed slot behavior)
-- Duration selector redesigned as dropdown (15/30/45/60 min) replacing pill buttons
-- Time label opacity and busy block hatch contrast increased for readability in bright environments
-
 ### Sprint 7 — QA Checklist ✅
 - [~] 1. Owner Gmail notification — NOT RESOLVED. Still not firing on production. Moved to bug backlog #6 for dedicated fix sprint.
 - [x] 2. Notification email format correct (unverifiable until send is working)
@@ -390,15 +355,6 @@ INTEGRATION
 **Goal:** Fix the two bugs surfaced from the first real external booking attempt.  
 **Definition of done:** "Copy Availability Link" correctly copies a `/book/:offerId` URL on iOS Firefox and iOS Safari. Booking form rejects malformed email addresses before submission.
 
-**Key decisions:**
-- "Copy Availability Link" bug is iOS Firefox specific but fix should be verified across iOS Safari and desktop Chrome
-- Frontend email validation is a simple format check (must contain `@` and a `.` after it) with inline error — no external validation library needed
-- Backend already handles the invalid email case in Sprint 7 — this is purely a frontend UX layer on top
-
-**Bugs addressed:**
-- Bug #4 — "Copy Availability Link" copies wrong URL on iOS Firefox
-- Bug #5 — Booking form accepts malformed email addresses
-
 ### Sprint 8 — QA Checklist ✅
 - [x] 1. "Copy Availability Link" on iOS Firefox copies a valid `/book/:offerId` URL
 - [x] 2. "Copy Availability Link" on iOS Safari copies a valid `/book/:offerId` URL
@@ -414,18 +370,8 @@ INTEGRATION
 ---
 
 ### Sprint 9 — Open Source Release ✅
-**Goal:** Make the repo ready for a public open source release. A technically capable person who has never used GCP before should be able to clone, configure, and run OpenSlot without asking for help.  
+**Goal:** Make the repo ready for a public open source release.  
 **Definition of done:** README covers what the app does and local dev setup, with screenshot placeholders. LICENSE file added. `.env.example` reviewed and confirmed complete. Repo is clean of any owner-specific values.
-
-**Key decisions:**
-- Target audience: technically capable, GCP novice — explain GCP-specific steps clearly, don't assume prior knowledge
-- README covers: what the app does, prerequisites, local dev setup, environment variables reference
-- Screenshot placeholders included so owner knows exactly which screenshots to capture and add manually
-- Full Cloud Run deploy instructions are out of scope for README v1 — local dev is the entry point for contributors
-- `LICENSE` file added as MIT at repo root
-- `.env.example` reviewed and confirmed to contain all required variables with no real values
-- No `CONTRIBUTING.md` required for initial release
-- No hardcoded owner-specific values (email, project ID, GCP URL) anywhere in source code
 
 ### Sprint 9 — QA Checklist ✅
 - [x] 1. README present at repo root and renders correctly on GitHub
@@ -442,18 +388,8 @@ INTEGRATION
 ---
 
 ### Sprint 10 — PWA ✅
-**Goal:** Make OpenSlot installable on iPhone home screen. Opens full-screen with no browser chrome, feels native. Owner-side improvement only — recipients are unaffected.  
+**Goal:** Make OpenSlot installable on iPhone home screen. Opens full-screen with no browser chrome, feels native.  
 **Definition of done:** OpenSlot can be added to iPhone home screen from Safari. Opens full-screen with no address bar. Custom calendar-slot icon displays correctly. App name shows as "OpenSlot" on home screen. Mobile owner view simplified to Copy Availability Link + duration selector only.
-
-**Key decisions:**
-- No offline support needed — app requires live calendar data, service worker is minimal (install criteria only)
-- Icon design: dark navy background (`#0a0f1e`), calendar grid with one amber (`#F59E0B`) highlighted cell — Option B from icon exploration
-- Display mode: `standalone` — full screen, no browser chrome
-- Theme color: `#0a0f1e` to match app background
-- Icons generated at all required Apple sizes: 192×192, 512×512, 180×180 (apple-touch-icon)
-- Mobile owner view (< 768px): week grid hidden, replaced with duration selector + full-width Copy Availability Link button
-- Nav bar on mobile hides redundant Copy Availability Link button and username — only gear icon and Sign Out remain
-- PWA installed via Safari only — Firefox iOS doesn't support PWA install APIs (Apple restriction)
 
 ### Sprint 10 — QA Checklist ✅
 - [x] 1. `manifest.json` present in public folder and linked in index.html
@@ -473,13 +409,6 @@ INTEGRATION
 **Goal:** Zero-functional-change cleanup sprint. Duplicated backend logic extracted into shared helpers. Frontend dead code removed. Hardcoded CSS hex values replaced with design system variables.  
 **Definition of done:** All duplicated calendar helper logic extracted. Dead code removed. CSS variables used consistently. All existing tests pass unchanged.
 
-**Key decisions:**
-- Created `backend/src/helpers/calendar.js` with 5 extracted functions (was duplicated across 3–5 files)
-- `offers.js` reduced from ~360 lines to ~300 lines
-- Removed unused `claimed` state from `BookingPage.js`
-- Added CSS variables `--error` and `--option-bg`, replaced hardcoded hex values
-- All 63 tests pass unchanged — confirms zero functional impact
-
 ### Sprint 11 — QA Checklist ✅
 - [x] 1. All 63 existing tests pass with no changes
 - [x] 2. Frontend build succeeds with no warnings from changed code
@@ -498,19 +427,6 @@ INTEGRATION
 **Goal:** Fix bugs discovered during the comprehensive post-Sprint 11 QA pass.  
 **Definition of done:** Copy Availability Link covers full 7 working days. iOS Safari clipboard write works reliably. Busy blocks render correctly with custom working days. Expired offers show proper error page.
 
-**Bugs fixed:**
-- Copy Availability Link only showing today's slots — now fetches fresh availability from API independent of WeekGrid view
-- Copy Availability Link scoped to 7 calendar days instead of 7 working days — now calculates calendar days needed to cover 7 working days based on user's schedule
-- iOS Safari clipboard silently failing — hidden textarea created and focused immediately on click to preserve gesture context; async API result written after
-- Busy block rendering with custom working days — removed hardcoded CSS nth-child rule, first-row margin applied dynamically via inline styles
-- Expired offer showing slots instead of error page — added `offer_expired` handler to booking submission error flow
-- iOS PWA clipboard write silently fails — split behavior by platform: desktop keeps auto-copy, mobile/PWA shows "Generate Availability Link" button that reveals inline glassmorphism panel with read-only URL field and amber copy icon; copy happens from fresh user gesture
-- Copy icon on mobile URL panel — replaced clipboard icon with open-corner copy icon (two overlapping rectangles) for clearer affordance
-- Past-time slots still showing as bookable — GET `/api/offers/:offerId` now filters out slots whose start time is before `now` (UTC); if zero remain, returns 410 with `offer_stale`; POST booking route checks slot time before conflict check, returns `slot_expired` if past
-- Sticky day headers on week grid — day header row and week nav bar stick to top of grid container on scroll
-- Column and row separators too faint — vertical separators increased to `rgba(255,255,255,0.10)`, horizontal hour lines to `rgba(255,255,255,0.08)`
-- Time labels too faint at scroll depth — Y-axis label opacity increased from 0.5 to 0.8
-
 ### Sprint 12 — QA Checklist ✅
 - [x] 1. Copy Availability Link booking page shows slots across all 7 working days (not just today)
 - [x] 2. On a Friday with Mon–Fri schedule, offer covers through next Monday+
@@ -522,38 +438,6 @@ INTEGRATION
 - [x] 8. Booking attempt on expired offer returns expiry error, not conflict error
 - [x] 9. No console errors across all fix scenarios
 - [x] 10. Full end-to-end booking flow works after all changes
-
----
-
-## Environment Variables Reference
-
-```
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=
-GOOGLE_CALENDAR_ID=primary
-FIRESTORE_PROJECT_ID=
-SESSION_SECRET=
-BASE_URL=https://your-domain.com
-```
-
-All secrets live in `.env` locally and in Cloud Run environment variables on production. See `.env.example` in the repo for the full list. Never include actual values in planning documents.
-
----
-
-## Out of Scope (v1)
-- Team/multi-user scheduling
-- Round-robin or group availability
-- Payment collection
-- SMS notifications
-- Recurring availability templates
-- Auto-hold calendar events
-- Custom domain
-- Outlook / iCloud calendar support (ideal for community contributions)
-
-## Future Sprints (Post-v1 Candidates)
-- **Gmail Fix Sprint** — dedicated investigation of bug #6 (owner Gmail notification). Verify `gmail.send` OAuth scope on stored tokens, check Cloud Run logs, test token refresh behavior.
-- **Reschedule Notifications** — once Gmail notifications are working, extend to cover reschedule events ("Jane moved your meeting from Thursday 2pm to Friday 10am").
 
 ---
 
@@ -573,7 +457,7 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 
 **UX Fixes (post-delivery):**
 1. **Slot snapping** — Buffer time was creating awkward :15/:45 start times on 30-min slots. Added `snapForward()` to the availability engine that snaps slot boundaries to clean intervals matching the duration (30-min → :00/:30, 45-min → :00/:45, 60-min → :00). Applied to both window start and post-busy-block cursor.
-2. **Inline confirm on reschedule page** — Replaced separate confirm button with an inline "Confirm" button that slides into the selected slot row. Full slot list stays visible; selecting a different slot moves the confirm button. Tested via interactive HTML mockup (Option A: bar below list vs Option B: inline on row — Option B chosen).
+2. **Inline confirm on reschedule page** — Replaced separate confirm button with an inline "Confirm" button that slides into the selected slot row. Full slot list stays visible; selecting a different slot moves the confirm button.
 3. **Booking page consistency** — Same always-visible slot list with amber highlight on selected slot. Booking form appears below the list (not collapsed).
 
 ### Sprint 13 — QA Checklist ✅
@@ -590,7 +474,7 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 
 ---
 
-### Sprint 14 — Extended Hours for Curated Offers ⏳ Upcoming
+### Sprint 14 — Extended Hours for Curated Offers ✅
 **Goal:** Owner can drag-select and offer times outside their configured working hours for curated offers. Working hours only gate the full-availability link.  
 **Definition of done:** Week grid allows selection on any hour. Full-availability link still respects working hours. Visual distinction between working and extended hours on the grid.
 
@@ -636,21 +520,263 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 > - The extended hours visual distinction should update dynamically if the owner changes their working hours in Settings.
 > - Reference `openslot-design-system.md` for all styling — use existing color tokens, do not introduce new accent colors."
 
-### Sprint 14 — QA Checklist
-- [ ] 1. Week grid renders hours outside configured working hours
-- [ ] 2. Extended hours are visually distinct from working hours
-- [ ] 3. Can drag-select time slots in extended hours range
-- [ ] 4. Curated offer with extended-hours slots saves correctly to Firestore
-- [ ] 5. Booking page shows extended-hours slots correctly for curated offers
-- [ ] 6. Full-availability link only includes slots within configured working hours
-- [ ] 7. Settings page working hours still function correctly
-- [ ] 8. Changing working hours updates the visual distinction on the grid
-- [ ] 9. Extended-hours slots bookable end-to-end (book → calendar event created)
-- [ ] 10. No console errors during extended-hours interaction
+### Sprint 14 — QA Checklist ✅
+- [x] 1. Week grid renders hours outside configured working hours
+- [x] 2. Extended hours are visually distinct from working hours
+- [x] 3. Can drag-select time slots in extended hours range
+- [x] 4. Curated offer with extended-hours slots saves correctly to Firestore
+- [x] 5. Booking page shows extended-hours slots correctly for curated offers
+- [x] 6. Full-availability link only includes slots within configured working hours
+- [x] 7. Settings page working hours still function correctly
+- [x] 8. Changing working hours updates the visual distinction on the grid
+- [x] 9. Extended-hours slots bookable end-to-end (book → calendar event created)
+- [x] 10. No console errors during extended-hours interaction
+
+---
+
+### Sprint 15 — Offer Dashboard ✅
+**Goal:** Give the owner full visibility and control over their offers — see what's active, who booked, and manage expiry or revoke links at any time.  
+**Definition of done:** New `/offers` dashboard page lists all offers with status and label. Owner can revoke or extend any active offer. Label field added to generation flow. Global expiry default moved to Settings.
+
+**Key decisions:**
+- Dashboard is owner-only, sits behind auth like all other owner routes
+- Offers listed using existing Firestore data only — no new event logging or view tracking
+- Label is optional at generation time — stored as `label` field (string, nullable) on the offer document
+- If no label set, dashboard falls back to displaying the first window's time range as the identifier
+- Revoke sets offer status to `expired` in Firestore immediately — the offer link becomes dead instantly
+- Extend updates `expiresAt` on the offer document — does not affect other offers
+- Global expiry default stored in Firestore settings document as `offerExpiryDays`, applies to all newly generated offers
+- Existing offers are unaffected by changes to the global expiry default
+
+**Claude Code prompt:**
+> "Implement Sprint 15 for OpenSlot — Offer Dashboard.
+>
+> **Overview:** Add an offer management dashboard so the owner can see all their offers, understand their status, and take action on them. Also adds an optional label to the offer generation flow and moves the expiry default into Settings.
+>
+> **Deliverable 1 — Optional Offer Label at Generation Time**
+>
+> Add an optional text input to the Generate Message flow, below the duration selector. Placeholder text: "Label this offer (optional) — e.g. Goldman recruiter, Marcus follow-up". This value is stored on the Firestore offer document as a `label` field (string, nullable). If skipped, `label` is null. The input should match the existing glassmorphism design system — Arc Blue border on focus, Space Mono font.
+>
+> **Deliverable 2 — Offer Dashboard Page**
+>
+> Create a new `/offers` route and `Offers.js` component, accessible only to authenticated owners. Add a link to it in the nav (e.g. a list/history icon next to the gear icon).
+>
+> The dashboard lists all offers for the current owner, sorted by `createdAt` descending (newest first). Each offer row displays:
+> - Label (if set) or fallback: the first window's time range formatted as "Mon Mar 16, 1:00–3:00 PM"
+> - Status badge: Active / Claimed / Expired — Arc Blue for active, Amber for claimed, dim white for expired
+> - Created date and expiry date
+> - Booked by name if status is claimed
+>
+> Group offers into two sections: Active/Claimed on top, Expired below (collapsed or visually separated).
+>
+> **Deliverable 3 — Per-Offer Actions**
+>
+> Each active or claimed offer row has three actions:
+> - **Copy link** — copies the `/book/:offerId` URL to clipboard, using the same `copyToClipboard` helper already in the codebase
+> - **Extend** — opens an inline set of buttons (+7 / +14 / +30 days) to push the `expiresAt` field forward in Firestore
+> - **Revoke** — sets offer status to `expired` in Firestore immediately, with a single inline "Are you sure?" confirmation prompt before executing. No modal needed.
+>
+> Expired offers show no actions.
+>
+> **Deliverable 4 — Global Expiry Default in Settings**
+>
+> Add an "Offer expiry" field to the Settings page alongside buffer time and duration. Default is 7 days. Accepts any value from 1–30 days. Stored in Firestore settings document as `offerExpiryDays`. All new offer creation reads this setting and applies it to the `expiresAt` calculation. Existing offers are unaffected.
+>
+> **Deliverable 5 — Backend Routes**
+>
+> Add the following authenticated routes:
+> - `GET /api/offers` — returns all offers for the current owner, sorted by createdAt descending
+> - `PATCH /api/offers/:offerId/expiry` — updates `expiresAt` for an active offer
+> - `POST /api/offers/:offerId/revoke` — sets status to `expired`
+>
+> All three require auth middleware. Revoke and expiry update must validate the offer belongs to the current owner before writing.
+>
+> **Deliverable 6 — Tests**
+>
+> Add tests covering:
+> - `GET /api/offers` returns only the current owner's offers
+> - `PATCH /api/offers/:offerId/expiry` updates correctly and rejects unauthorized owners
+> - `POST /api/offers/:offerId/revoke` sets status to expired and rejects unauthorized owners
+> - Label field is saved and returned correctly on offer creation
+> - Offer expiry setting in Settings is applied to new offer creation
+>
+> **Important implementation notes:**
+> - All new UI follows `openslot-design-system.md` — Arc Blue for info/structure, Amber for actions, glassmorphism panels
+> - The `label` field is additive — existing offers without a label must render gracefully using the window time fallback
+> - Revoke must show a confirmation before executing — inline prompt only, no modal
+> - Copy link on the dashboard uses the same `copyToClipboard` helper already in the codebase
+> - The `GET /api/offers` route is new and distinct from the existing `GET /api/offers/:offerId` public route"
+
+**Post-QA fixes (applied before sprint close):**
+1. **Label field repositioned** — moved from above the calendar grid into the Send Slots panel. Label input and Copy Message button share a single row (D2 layout) — label takes remaining horizontal space, amber Copy button to its right. Label is optional and non-blocking.
+2. **Label not displaying on dashboard** — bug fixed, labeled offers now show the label as the row title.
+3. **Claimed badge color** — changed from Amber to `#10B981` (emerald green, `--success`) per design system. Active stays Arc Blue, expired stays dim white.
+4. **Offer `27aaacd9` data patch** — status corrected to `claimed` in Firestore. Now shows correctly in dashboard as claimed by Zahra.
+5. **Expandable offer rows** — each offer row has a chevron toggle. When expanded, shows the list of offered windows formatted as "Tue, Mar 17 · 11:00 AM – 1:00 PM" in Arc Blue tinted rows with a "OFFERED WINDOWS" section label. Action buttons remain visible whether expanded or collapsed.
+
+**Post-Sprint 15 additions:**
+- **Gmail subject encoding fix** — em dash and non-ASCII characters in notification subject were rendering as garbled text (e.g. `Ã¢Â€Â"`). Root cause: Gmail API was never enabled in the GCP project. Enabled via GCP Console. Subject now uses RFC 2047 `=?UTF-8?B?...?=` encoded-word syntax. Resolves bug #6.
+- **Reschedule notification** — owner now receives a Gmail notification when a recipient reschedules. Subject: "Rescheduled: [name] — [day] at [time]". Body shows old and new times. Fire-and-forget, UTF-8 Base64 encoded subject.
+
+### Sprint 15 — QA Checklist ✅
+- [x] 1. Optional label field appears in Generate Message flow and saves to Firestore
+- [x] 2. Dashboard at `/offers` loads and lists all offers for the owner
+- [x] 3. Offers without a label show the first window's time range as fallback identifier
+- [x] 4. Status badges render correctly — Arc Blue (active), green (claimed), dim (expired)
+- [x] 5. Booked-by name appears on claimed offers
+- [x] 6. Copy link action copies the correct `/book/:offerId` URL to clipboard
+- [x] 7. Extend action updates `expiresAt` in Firestore and reflects new date in the UI
+- [x] 8. Revoke action prompts confirmation, then sets status to expired immediately
+- [x] 9. Offer expiry default in Settings applies to newly generated offers
+- [x] 10. No console errors across all dashboard interactions
+
+---
+
+### Sprint 16 — Refactor & Security Audit ⏳ Upcoming
+**Goal:** Harden the codebase against security gaps introduced in Sprints 13–15, refactor duplicated frontend and backend code, fill test coverage gaps, and polish UX rough edges.
+**Definition of done:** All Sprint 13/15 routes audited and hardened. Shared frontend utilities extracted. Test coverage gaps filled. Generated message format improved. Mobile layout verified on reschedule and offers pages. Empty states handled.
+
+**Key decisions:**
+- Security workstream completed before refactor workstream
+- Firestore security rules ring-fenced to Sprint 17 — not in scope here
+- No new features — every change is a security fix, refactor, test, or UX polish
+
+**Claude Code prompt:**
+> "Implement Sprint 16 for OpenSlot — Refactor & Security Audit. This is a two-workstream sprint. Complete Workstream 1 before starting Workstream 2.
+>
+> **Workstream 1 — Security Audit & Hardening**
+>
+> **1a. Owner validation audit on Sprint 13/15 routes**
+>
+> Audit every route added in Sprint 13 (reschedule) and Sprint 15 (dashboard) for correct owner validation. Every route that reads or writes an offer document must verify the offer belongs to the requesting user before proceeding. Specifically:
+> - `GET /api/offers` — must only return offers where `ownerId` matches the authenticated user
+> - `PATCH /api/offers/:offerId/expiry` — must verify offer belongs to current user before writing
+> - `PATCH /api/offers/:offerId/label` — must verify offer belongs to current user before writing
+> - `POST /api/offers/:offerId/revoke` — must verify offer belongs to current user before writing
+> - `GET /api/offers/:offerId/reschedule` — public route, must not expose owner email, OAuth tokens, or any calendar metadata beyond whitelisted fields
+> - `POST /api/offers/:offerId/reschedule` — must not expose private data in any error response
+>
+> Fix any gaps found. Document findings in code comments.
+>
+> **1b. Rate limiting on reschedule endpoint**
+>
+> Apply the same Firestore-backed IP rate limiter that exists on the booking endpoint to `POST /api/offers/:offerId/reschedule`. Use the same configuration: 10 attempts per IP per 15-minute rolling window, returns `429 { error: "Too many requests. Please try again later." }`.
+>
+> **1c. Error response audit on Sprint 13/15 routes**
+>
+> Audit all Sprint 13 and Sprint 15 route error responses. Verify no stack traces, file paths, internal error codes, owner data, or OAuth token values are present in any error response on these routes. All unhandled errors must flow through the global error handler added in Sprint 6.
+>
+> **1d. Session and token storage audit**
+>
+> Review how OAuth tokens are stored in Firestore and how sessions are managed on Cloud Run. Document any risks in code comments. Do not make changes unless a clear security gap exists — this is an audit and documentation step.
+>
+> **Workstream 2 — Refactor & UX Improvements**
+>
+> **2a. Shared time/date formatting utility**
+>
+> Audit all time and date formatting logic across the frontend (`WeekGrid.js`, `BookingPage.js`, `Reschedule.js`, `Offers.js`). Extract any duplicated formatting functions into a shared `utils/time.js` utility file. Replace all inline duplicates with imports from the shared utility. No functional changes.
+>
+> **2b. Reusable slot list component**
+>
+> `BookingPage.js` and `Reschedule.js` both render a list of time slot pills with selection state and amber highlight. Extract this into a shared `SlotList.js` component. Replace both usages. No visual changes.
+>
+> **2c. copyToClipboard consistency**
+>
+> Audit all clipboard write operations across the frontend. Confirm every one uses the existing `copyToClipboard` helper. Replace any that don't. No functional changes.
+>
+> **2d. Backend naming and error shape consistency**
+>
+> Audit route files added in Sprint 13 and Sprint 15 for consistency with the patterns established in earlier routes:
+> - Error response shapes should match `{ error: "..." }` format used throughout
+> - JSDoc comments should be present on all route handlers
+> - Variable naming should be consistent with existing conventions
+> Make corrections where needed. No functional changes.
+>
+> **2e. Test coverage gaps**
+>
+> Audit test coverage for Sprint 13 (reschedule) and Sprint 15 (dashboard) routes. Identify any routes or edge cases with no test coverage. Add tests to fill gaps. All existing tests must continue to pass.
+>
+> **2f. Performance quick wins**
+>
+> Identify any sequential API calls in the booking or reschedule flows that could be safely parallelized using `Promise.all`. Apply where the calls are independent. Do not parallelize calls where order matters.
+>
+> **2g. Generated message format**
+>
+> Improve the default generated message output so it requires less manual editing before sending. The current format uses a raw URL after an arrow (e.g. `→ https://...`). Replace with a cleaner format where the time range is the hyperlink text, e.g. `Tuesday, March 17 · 11:00 AM – 1:00 PM` as a clickable link. The URL should be the href, not visible inline text. This applies to the curated offer message output only — not the full availability link.
+>
+> **2h. Mobile audit — reschedule and offers dashboard**
+>
+> Test `Reschedule.js` and `Offers.js` on a mobile viewport (< 768px). Fix any layout issues: text overflow, buttons too small to tap, panels overflowing the viewport, or content that requires horizontal scrolling. Use existing CSS media query patterns from the rest of the app.
+>
+> **2i. Empty states**
+>
+> Add graceful empty states for:
+> - `/offers` dashboard with no offers — a dim message in Space Mono, e.g. "No offers yet. Head to the calendar to create your first one." with an Arc Blue link to `/`
+> - Reschedule page when no slots are available from the original offer — already partially handled, verify the message is correct and styled per design system
+>
+> **Important implementation notes:**
+> - All security fixes take priority — complete and verify Workstream 1 before starting Workstream 2
+> - No new features in this sprint — every change is either a security fix, a refactor, a test, or a UX polish
+> - All existing tests must pass after every change
+> - Reference `openslot-design-system.md` for any UI changes — no new colors or patterns"
+
+### Sprint 16 — QA Checklist
+- [ ] 1. All Sprint 13/15 owner validation gaps identified and fixed
+- [ ] 2. Reschedule endpoint rate limited — returns 429 after 10 attempts per IP per 15 min
+- [ ] 3. No private data exposed in any Sprint 13/15 error response
+- [ ] 4. Session and token storage audit documented in code comments
+- [ ] 5. Shared `utils/time.js` utility in place, no duplicated formatting functions remain
+- [ ] 6. `SlotList.js` component extracted and used in both BookingPage and Reschedule
+- [ ] 7. All clipboard writes use the `copyToClipboard` helper
+- [ ] 8. Generated message uses hyperlinked time ranges, no raw URLs visible
+- [ ] 9. Reschedule and offers dashboard display correctly on mobile (< 768px)
+- [ ] 10. Empty states render correctly on `/offers` and reschedule page
+
+---
+
+### Sprint 17 — Firestore Security Rules ⏳ Upcoming
+**Goal:** Lock down Firestore at the database level so all direct client access is denied. Security currently relies entirely on Express middleware — if the API were bypassed, Firestore would be wide open.
+**Definition of done:** Firestore security rules written and deployed. All existing functionality works unchanged. Rules verified in the Firestore emulator.
+
+**Key decisions:**
+- Firestore rules should deny all direct client reads and writes
+- Only the backend service account should have read/write access
+- This sprint is education + implementation — document what the rules do and why
+
+---
+
+## Environment Variables Reference
+
+```
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=
+GOOGLE_CALENDAR_ID=primary
+FIRESTORE_PROJECT_ID=
+SESSION_SECRET=
+BASE_URL=https://your-domain.com
+```
+
+All secrets live in `.env` locally and in Cloud Run environment variables on production. See `.env.example` in the repo for the full list. Never include actual values in planning documents.
+
+---
+
+## Out of Scope (v1)
+- Team/multi-user scheduling
+- Round-robin or group availability
+- Payment collection
+- SMS notifications
+- Recurring availability templates
+- Auto-hold calendar events
+- Custom domain
+- Outlook / iCloud calendar support (ideal for community contributions)
+
+## Future Sprints (Post-v1 Candidates)
+- **Message output cleanup** — improve the generated message format so it requires less manual editing before sending (e.g. cleaner URL presentation, better default copy).
 
 ---
 
 ## Success Metrics (Personal)
-- You send your first real booking link to a recruiter
-- The recruiter books without asking a follow-up question
+- You send your first real booking link to a recruiter ✅
+- The recruiter books without asking a follow-up question ✅ (Zahra)
 - Zero third-party scheduling tool fees paid going forward

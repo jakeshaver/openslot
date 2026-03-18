@@ -1281,8 +1281,17 @@ a.app-logo {
 
 .offers-empty {
   color: rgba(255, 255, 255, 0.4);
-  font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.offers-empty-link {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.offers-empty-link:hover {
+  text-decoration: underline;
 }
 
 .offers-section {
@@ -1718,6 +1727,38 @@ a.app-logo {
   .btn-copy-link,
   .user-name {
     display: none;
+  }
+
+  /* Offers dashboard mobile */
+  .offers-page {
+    padding: 1rem 0.5rem;
+  }
+
+  .offers-panel {
+    padding: 1.25rem;
+  }
+
+  .offer-row-meta {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .offer-row-actions {
+    flex-wrap: wrap;
+  }
+
+  .offer-row-label {
+    font-size: 0.78rem;
+    white-space: normal;
+  }
+
+  .modal-bottom-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .label-input-row {
+    width: 100%;
   }
 }
 

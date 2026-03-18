@@ -5,6 +5,7 @@ import PublicBooking from './components/PublicBooking';
 import Reschedule from './components/Reschedule';
 import Settings from './components/Settings';
 import Offers from './components/Offers';
+import { copyToClipboard } from './utils/time';
 import './App.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
@@ -68,11 +69,11 @@ function formatWindowLine(win) {
   const day = start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   const startTime = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const endTime = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
-  return `${day} @ ${startTime}–${endTime}`;
+  return `${day} · ${startTime} – ${endTime}`;
 }
 
-// Generate message with offer link — one line per window
-function generateMessage(offer) {
+// Generate message as plain text (for display in the modal preview)
+function generateMessageText(offer) {
   const baseUrl = window.location.origin;
 
   if (!offer || !offer.windows) {
@@ -80,10 +81,48 @@ function generateMessage(offer) {
   }
 
   const lines = offer.windows.map((w, idx) => {
-    return `  ${formatWindowLine(w)} → ${baseUrl}/book/${offer.id}?window=${idx}`;
+    return `  ${formatWindowLine(w)}\n  ${baseUrl}/book/${offer.id}?window=${idx}`;
   });
 
-  return `Hi — happy to connect! Here are a few times that work on my end:\n\n${lines.join('\n')}\n\nJust click whichever works best — it'll book directly on my calendar.`;
+  return `Hi — happy to connect! Here are a few times that work on my end:\n\n${lines.join('\n\n')}\n\nJust click whichever works best — it'll book directly on my calendar.`;
+}
+
+// Generate message as HTML (for rich-text clipboard paste — hyperlinked time ranges)
+function generateMessageHtml(offer) {
+  const baseUrl = window.location.origin;
+
+  if (!offer || !offer.windows) return '';
+
+  const lines = offer.windows.map((w, idx) => {
+    const url = `${baseUrl}/book/${offer.id}?window=${idx}`;
+    return `<a href="${url}">${formatWindowLine(w)}</a>`;
+  });
+
+  return `<p>Hi — happy to connect! Here are a few times that work on my end:</p><p>${lines.join('<br>')}</p><p>Just click whichever works best — it'll book directly on my calendar.</p>`;
+}
+
+// Copy rich HTML + plain text fallback to clipboard
+async function copyRichMessage(offer) {
+  const html = generateMessageHtml(offer);
+  const text = generateMessageText(offer);
+
+  // Try rich clipboard (HTML) first — works in modern browsers
+  if (navigator.clipboard && navigator.clipboard.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+        }),
+      ]);
+      return true;
+    } catch {
+      // Fall through to plain text
+    }
+  }
+
+  // Fallback: plain text copy
+  return copyToClipboard(text);
 }
 
 function App() {
@@ -178,35 +217,6 @@ function App() {
   const [linkSaving, setLinkSaving] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState(null);
   const [urlCopied, setUrlCopied] = useState(false);
-
-  const copyToClipboard = useCallback(async (text) => {
-    // Try modern Clipboard API first
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch {
-        // Fall through to fallback
-      }
-    }
-    // Fallback for iOS Firefox and older browsers
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    textarea.setSelectionRange(0, text.length);
-    try {
-      document.execCommand('copy');
-      return true;
-    } catch {
-      return false;
-    } finally {
-      document.body.removeChild(textarea);
-    }
-  }, []);
 
   // Detect mobile or PWA standalone mode
   const isMobileOrPWA = useCallback(() => {
@@ -345,8 +355,7 @@ function App() {
   }, [sendSaving, duration, createOffer]);
 
   const handleModalCopy = async () => {
-    const msg = generateMessage(offerData);
-    const copied = await copyToClipboard(msg);
+    const copied = await copyRichMessage(offerData);
     if (copied) {
       setModalCopied(true);
       setTimeout(() => setModalCopied(false), 2000);
@@ -553,7 +562,7 @@ function App() {
             <div className="modal-overlay" onClick={() => setShowModal(false)}>
               <div className="modal-card" onClick={(e) => e.stopPropagation()}>
                 <h3>Your message</h3>
-                <div className="message-preview">{generateMessage(offerData)}</div>
+                <div className="message-preview">{generateMessageText(offerData)}</div>
                 <div className="modal-bottom-row">
                   <input
                     className="label-input label-input-row"

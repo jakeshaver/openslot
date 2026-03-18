@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { copyToClipboard } from '../utils/time';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
@@ -41,27 +42,6 @@ function StatusBadge({ status }) {
   else if (status === 'claimed') { className += ' badge-claimed'; label = 'Claimed'; }
   else { className += ' badge-expired'; label = 'Expired'; }
   return <span className={className}>{label}</span>;
-}
-
-function copyToClipboard(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy(text));
-  }
-  return Promise.resolve(fallbackCopy(text));
-}
-
-function fallbackCopy(text) {
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  textarea.setSelectionRange(0, text.length);
-  try { document.execCommand('copy'); return true; }
-  catch { return false; }
-  finally { document.body.removeChild(textarea); }
 }
 
 export default function Offers() {
@@ -147,7 +127,7 @@ export default function Offers() {
         <h2>Your Offers</h2>
 
         {offers.length === 0 && (
-          <p className="offers-empty">No offers yet. Generate one from the calendar view.</p>
+          <p className="offers-empty">No offers yet. <a href="/" className="offers-empty-link">Head to the calendar</a> to create your first one.</p>
         )}
 
         {activeOffers.length > 0 && (
