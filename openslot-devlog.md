@@ -604,6 +604,32 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 
 ---
 
+### Sprint 16 — Refactor & Security Audit ✅ March 2026
+**Outcome:** Two-workstream sprint — security hardening followed by code cleanup. No new features. All Sprint 13/15 routes audited, frontend deduplicated, generated message improved, mobile layouts fixed.
+
+**Workstream 1 — Security Audit & Hardening:**
+- Owner validation audit on all Sprint 13 (reschedule) and Sprint 15 (dashboard) routes — all clean, no gaps found
+- Rate limiting already in place on reschedule POST (10 per IP per 15 min)
+- Error response audit — no private data, stack traces, or token values in any Sprint 13/15 error response
+- Token storage risk documented in `store.js` — OAuth tokens stored on offer documents for offline Calendar API access; mitigated by stripping tokens from all API responses, Firestore rules deferred to Sprint 17
+
+**Workstream 2 — Refactor & UX:**
+- Created shared `frontend/src/utils/time.js` — extracted `TZ_DATA`, `getTzLabel`, `getMonthData`, `copyToClipboard` from PublicBooking, Reschedule, Offers, and App (~150 lines deduplicated)
+- Generated message now copies as rich HTML with hyperlinked time ranges (time is the clickable link text, URL is the href). Falls back to plain text for older browsers.
+- Mobile responsive fixes for `/offers` dashboard (wrapping meta, actions, label text) and Send Slots modal (stacked bottom row)
+- Empty state on `/offers` updated to Space Mono font with Arc Blue link to calendar
+- Added `--success` CSS variable (`#10B981`) to design system tokens
+- Removed dead `BookingPage.js` (superseded by `PublicBooking.js`)
+
+**Not changed (assessed, no action needed):**
+- SlotList extraction — PublicBooking and Reschedule slot lists have enough differences that extraction would add complexity without clear benefit
+- Backend naming/error shapes — already consistent across all routes
+- Promise.all parallelization — booking/reschedule flows have sequential dependencies, no safe parallelization found
+
+**Deployed to production:** 2026-03-18 — revision `openslot-00044-cs7`.
+
+---
+
 ## QA Standard
 Every sprint ships with a 10-item QA checklist covering:
 - Core functionality end to end
