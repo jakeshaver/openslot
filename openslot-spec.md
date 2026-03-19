@@ -632,7 +632,7 @@ INTEGRATION
 
 ---
 
-### Sprint 16 — Refactor & Security Audit ⏳ Upcoming
+### Sprint 16 — Refactor & Security Audit ✅
 **Goal:** Harden the codebase against security gaps introduced in Sprints 13–15, refactor duplicated frontend and backend code, fill test coverage gaps, and polish UX rough edges.
 **Definition of done:** All Sprint 13/15 routes audited and hardened. Shared frontend utilities extracted. Test coverage gaps filled. Generated message format improved. Mobile layout verified on reschedule and offers pages. Empty states handled.
 
@@ -720,17 +720,17 @@ INTEGRATION
 > - All existing tests must pass after every change
 > - Reference `openslot-design-system.md` for any UI changes — no new colors or patterns"
 
-### Sprint 16 — QA Checklist
-- [ ] 1. All Sprint 13/15 owner validation gaps identified and fixed
-- [ ] 2. Reschedule endpoint rate limited — returns 429 after 10 attempts per IP per 15 min
-- [ ] 3. No private data exposed in any Sprint 13/15 error response
-- [ ] 4. Session and token storage audit documented in code comments
-- [ ] 5. Shared `utils/time.js` utility in place, no duplicated formatting functions remain
-- [ ] 6. `SlotList.js` component extracted and used in both BookingPage and Reschedule
-- [ ] 7. All clipboard writes use the `copyToClipboard` helper
-- [ ] 8. Generated message uses hyperlinked time ranges, no raw URLs visible
-- [ ] 9. Reschedule and offers dashboard display correctly on mobile (< 768px)
-- [ ] 10. Empty states render correctly on `/offers` and reschedule page
+### Sprint 16 — QA Checklist ✅
+- [x] 1. All Sprint 13/15 owner validation gaps identified and fixed
+- [x] 2. Reschedule endpoint rate limited — returns 429 after 10 attempts per IP per 15 min
+- [x] 3. No private data exposed in any Sprint 13/15 error response
+- [x] 4. Session and token storage audit documented in code comments
+- [x] 5. Shared `utils/time.js` utility in place, no duplicated formatting functions remain
+- [~] 6. `SlotList.js` component extraction — assessed, intentionally skipped. BookingPage and Reschedule slot lists have enough differences that extraction would add complexity without clear benefit.
+- [x] 7. All clipboard writes use the `copyToClipboard` helper
+- [x] 8. Generated message uses hyperlinked time ranges, no raw URLs visible
+- [x] 9. Reschedule and offers dashboard display correctly on mobile (< 768px)
+- [x] 10. Empty states render correctly on `/offers` and reschedule page
 
 ---
 
@@ -752,9 +752,10 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=
 GOOGLE_CALENDAR_ID=primary
-FIRESTORE_PROJECT_ID=
 SESSION_SECRET=
-BASE_URL=https://your-domain.com
+FRONTEND_URL=http://localhost:3000
+PORT=3001
+NODE_ENV=development
 ```
 
 All secrets live in `.env` locally and in Cloud Run environment variables on production. See `.env.example` in the repo for the full list. Never include actual values in planning documents.
@@ -771,8 +772,15 @@ All secrets live in `.env` locally and in Cloud Run environment variables on pro
 - Custom domain
 - Outlook / iCloud calendar support (ideal for community contributions)
 
+## Bug & Edge Case Backlog (continued)
+8. **Stale offers showing as Active** — offers where all individual slots have passed but `expiresAt` is still in the future continue to show as Active in the dashboard. Should auto-expire or be flagged as stale once all slots are in the past.
+9. **Duplicate full-availability offers** — Copy Availability Link generates a new offer on every click rather than reusing an existing active one. Results in duplicate entries in the dashboard with identical time windows.
+
+---
+
 ## Future Sprints (Post-v1 Candidates)
-- **Message output cleanup** — improve the generated message format so it requires less manual editing before sending (e.g. cleaner URL presentation, better default copy).
+- ~~**Message output cleanup**~~ — completed in Sprint 16 (rich HTML with hyperlinked time ranges).
+- **Stale offer cleanup sprint** — fix bugs #8 and #9 above: auto-expire offers where all slots have passed, and deduplicate full-availability offer generation.
 
 ---
 
