@@ -626,6 +626,8 @@ All secrets live in `.env` locally. `.env.example` is committed to the repo as a
 - Backend naming/error shapes — already consistent across all routes
 - Promise.all parallelization — booking/reschedule flows have sequential dependencies, no safe parallelization found
 
+**Test count:** 87 total (unchanged from Sprint 15 — no new tests added, audit-only sprint).
+
 **Deployed to production:** 2026-03-18 — revision `openslot-00044-cs7`.
 
 ---
